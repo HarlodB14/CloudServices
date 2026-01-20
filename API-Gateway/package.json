@@ -1,0 +1,21 @@
+{
+  "name": "cloudservices",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarlodB14/CloudServices.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/HarlodB14/CloudServices/issues"
+  },
+  "homepage": "https://github.com/HarlodB14/CloudServices#readme"
+}
