@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/HarlodB14/CloudServices/issues"
   },
-  "homepage": "https://github.com/HarlodB14/CloudServices#readme"
+  "homepage": "https://github.com/HarlodB14/CloudServices#readme",
+  "dependencies": {
+    "http-proxy-middleware": "^3.0.5"
+  }
 }
