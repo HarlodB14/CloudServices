@@ -1,7 +1,6 @@
 {
   "name": "cloudservices",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -19,6 +18,9 @@
   },
   "homepage": "https://github.com/HarlodB14/CloudServices#readme",
   "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "http-proxy-middleware": "^3.0.5"
-  }
+  },
+  "description": ""
 }
