@@ -8,25 +8,33 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - photo-prestiges
 
   api-gateway:
     build: ./api-gateway
     environment:
+      - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:3001
     ports:
       - "3000:3000"
     depends_on:
       - auth-service
+    networks:
+      - photo-prestiges
 
   auth-service:
     restart: unless-stopped
     build: ./auth-service
     environment:
+      - PORT=3001
       - MONGO_URI=mongodb://mongo:27017/auth
+      - DB_URL=mongodb://mongo:27017/auth
+      - JWT_SECRET=mysecretkey
     depends_on:
       - mongo
-    ports:
-      - "3001:3001"
+    networks:
+      - photo-prestiges
 
 volumes:
   mongo_data:
