@@ -7,7 +7,7 @@ app.use(express.json());
 
 // Minimal routes
 const healthRoutes = require('./routes/health');
-const targetsRoutes = require('./routes/targets');
+const targetsRoutes = require('./routes/targetRoutes');
 app.use('/api', healthRoutes);
 app.use('/api/targets', targetsRoutes);
 

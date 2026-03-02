@@ -97,13 +97,7 @@ app.post('/api/targets',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
-        onProxyReq(proxyReq, req, res) {
-            // Forward user info to microservice
-            proxyReq.setHeader('X-User-Id', req.user.userId);
-            proxyReq.setHeader('X-User-Email', req.user.email);
-            proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
-            console.log(`[TARGETS] ${req.user.email} creating target`);
-        }
+        onProxyReq: forwardUserHeaders
     })
 );
 
@@ -115,12 +109,7 @@ app.put('/api/targets/:id',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
-        onProxyReq(proxyReq, req, res) {
-            proxyReq.setHeader('X-User-Id', req.user.userId);
-            proxyReq.setHeader('X-User-Email', req.user.email);
-            proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
-            console.log(`[TARGETS] ${req.user.email} updating target :${req.params.id}`);
-        }
+        onProxyReq: forwardUserHeaders
     })
 );
 
@@ -132,12 +121,7 @@ app.delete('/api/targets/:id',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
-        onProxyReq(proxyReq, req, res) {
-            proxyReq.setHeader('X-User-Id', req.user.userId);
-            proxyReq.setHeader('X-User-Email', req.user.email);
-            proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
-            console.log(`[TARGETS] ${req.user.email} deleting target :${req.params.id}`);
-        }
+        onProxyReq: forwardUserHeaders
     })
 );
 
@@ -149,12 +133,7 @@ app.get('/api/targets/:id/scores',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
-        onProxyReq(proxyReq, req, res) {
-            proxyReq.setHeader('X-User-Id', req.user.userId);
-            proxyReq.setHeader('X-User-Email', req.user.email);
-            proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
-            console.log(`[TARGETS] ${req.user.email} viewing scores for target :${req.params.id}`);
-        }
+        onProxyReq: forwardUserHeaders
     })
 );
 
@@ -316,3 +295,10 @@ Auth Services URL: ${AUTH_SERVICE_URL}
 Target Service:   ${TARGET_SERVICE_URL}
     `);
 });
+
+/* helper for all target‑service proxies */
+function forwardUserHeaders(proxyReq, req) {
+    proxyReq.setHeader('X-User-Id', req.user.userId);
+    proxyReq.setHeader('X-User-Email', req.user.email);
+    proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
+}

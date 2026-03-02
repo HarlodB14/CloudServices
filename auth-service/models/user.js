@@ -45,13 +45,16 @@ const userSchema = new mongoose.Schema({
 // Create geospatial index for location-based queries
 userSchema.index({ location: '2dsphere' });
 
-
-userSchema.pre('save', async function() {
-    if (this.isModified('password')) {
-        const salt = await bcrypt.genSalt(10);
-        this.password = await bcrypt.hash(this.password, salt);
+userSchema.pre('save', async function(next) {
+    try {
+        if (this.isModified('password')) {
+            const salt = await bcrypt.genSalt(10);
+            this.password = await bcrypt.hash(this.password, salt);
+        }
+        next();
+    } catch (error) {
+        next(error);
     }
 });
-
 
 module.exports = mongoose.model('User', userSchema);
