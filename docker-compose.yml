@@ -36,6 +36,17 @@ services:
     networks:
       - photo-prestiges
 
+  target-service:
+    build: ./target-service
+    environment:
+      - PORT=3002
+      - MONGO_URI=mongodb://mongo:27017/target
+      - DB_URL=mongodb://mongo:27017/target
+    depends_on:
+      - mongo
+    networks:
+      - photo-prestiges
+
 volumes:
   mongo_data:
 
