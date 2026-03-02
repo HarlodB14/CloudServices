@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const { verifyToken, requireRole } = require('./middleware/photoPrestigeAuth');
 
 const app = express();
 
@@ -13,6 +14,34 @@ const PORT = process.env.PORT || 3000;
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
+
+// Protected routes - REQUIRE VALID JWT
+app.use('/api', verifyToken); // Verify token for all /api routes
+
+// Example: Admin-only routes
+app.use('/api/admin', requireRole(['admin']), createProxyMiddleware({
+    target: process.env.ADMIN_SERVICE_URL || 'http://admin-service:3002',
+    changeOrigin: true,
+    pathRewrite: { '^/api/admin': '/' },
+    onProxyReq(proxyReq, req, res) {
+        // Forward user info to microservice
+        proxyReq.setHeader('X-User-Id', req.user.userId);
+        proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
+        console.log(`[PROXY-ADMIN] ${req.method} ${req.originalUrl}`);
+    }
+}));
+
+// Example: User profile routes (authenticated users only)
+app.use('/api/profile', requireRole(['user', 'admin']), createProxyMiddleware({
+    target: process.env.USER_SERVICE_URL || 'http://user-service:3003',
+    changeOrigin: true,
+    pathRewrite: { '^/api/profile': '/' },
+    onProxyReq(proxyReq, req, res) {
+        proxyReq.setHeader('X-User-Id', req.user.userId);
+        proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
+        console.log(`[PROXY-USER] ${req.method} ${req.originalUrl}`);
+    }
+}));
 
 app.use('/auth', createProxyMiddleware({
     target: AUTH_SERVICE_URL,

@@ -1,0 +1,26 @@
+{
+    "name": "target-service",
+    "version": "1.0.0",
+    "description": "Photo Prestige - Target/Competition Management Service",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+    },
+    "keywords": [
+        "photo-prestige",
+        "targets",
+        "competitions"
+    ],
+    "author": "Photo Prestige Team",
+    "license": "ISC",
+    "dependencies": {
+        "express": "^5.2.1",
+        "mongoose": "^7.5.0",
+        "dotenv": "^17.2.3",
+        "jsonwebtoken": "^8.5.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    }
+}

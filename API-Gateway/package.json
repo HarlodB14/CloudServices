@@ -1,26 +1,27 @@
 {
-  "name": "cloudservices",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/HarlodB14/CloudServices.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/HarlodB14/CloudServices/issues"
-  },
-  "homepage": "https://github.com/HarlodB14/CloudServices#readme",
-  "dependencies": {
-    "dotenv": "^17.2.3",
-    "express": "^5.2.1",
-    "http-proxy-middleware": "^3.0.5"
-  },
-  "description": ""
+    "name": "cloudservices",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/HarlodB14/CloudServices.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "bugs": {
+        "url": "https://github.com/HarlodB14/CloudServices/issues"
+    },
+    "homepage": "https://github.com/HarlodB14/CloudServices#readme",
+    "dependencies": {
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
+        "http-proxy-middleware": "^3.0.5",
+        "jsonwebtoken": "^8.5.1"
+    },
+    "description": ""
 }
