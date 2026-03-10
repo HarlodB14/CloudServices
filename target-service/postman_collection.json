@@ -1,0 +1,265 @@
+{
+    "info": {
+        "name": "Photo Prestige - Target Service",
+        "description": "Complete API collection for testing the Target Service",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [{
+            "key": "baseUrl",
+            "value": "http://localhost:3002/api"
+        },
+        {
+            "key": "targetId",
+            "value": ""
+        },
+        {
+            "key": "ownerId",
+            "value": "owner123"
+        },
+        {
+            "key": "participantId",
+            "value": "user456"
+        }
+    ],
+    "item": [{
+            "name": "Public Endpoints",
+            "item": [{
+                    "name": "Get All Targets",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets?status=active&limit=10",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets"],
+                            "query": [
+                                { "key": "status", "value": "active" },
+                                { "key": "limit", "value": "10" },
+                                { "key": "page", "value": "1" },
+                                { "key": "latitude", "value": "52.36", "disabled": true },
+                                { "key": "longitude", "value": "4.88", "disabled": true },
+                                { "key": "radius", "value": "10", "disabled": true },
+                                { "key": "search", "value": "statue", "disabled": true }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Target by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Search Targets Near Location",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets?latitude=52.36&longitude=4.88&radius=5",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets"],
+                            "query": [
+                                { "key": "latitude", "value": "52.36" },
+                                { "key": "longitude", "value": "4.88" },
+                                { "key": "radius", "value": "5" }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Owner Endpoints",
+            "item": [{
+                    "name": "Create Target",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    const response = pm.response.json();",
+                                "    pm.collectionVariables.set('targetId', response.target._id);",
+                                "}"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{ownerId}}" },
+                            { "key": "X-User-Email", "value": "owner@test.com" },
+                            { "key": "X-User-Roles", "value": "target_owner" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Rijksmuseum Statue Hunt\",\n  \"description\": \"Find this famous statue in Amsterdam and win a year membership!\",\n  \"imageUrl\": \"https://images.unsplash.com/photo-1583037189850-1921ae7c6c22\",\n  \"location\": {\n    \"latitude\": 52.36,\n    \"longitude\": 4.88,\n    \"radius\": 50\n  },\n  \"deadline\": \"2026-03-05T18:00:00Z\",\n  \"prize\": \"Year membership to Rijksmuseum\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/targets",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets"]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Target",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{ownerId}}" },
+                            { "key": "X-User-Email", "value": "owner@test.com" },
+                            { "key": "X-User-Roles", "value": "target_owner" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Updated Title\",\n  \"prize\": \"€200 gift card\",\n  \"deadline\": \"2026-03-06T18:00:00Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "View All Scores (Owner)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{ownerId}}" },
+                            { "key": "X-User-Roles", "value": "target_owner" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}/scores",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}", "scores"]
+                        }
+                    }
+                },
+                {
+                    "name": "Finalize Target (Determine Winner)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{ownerId}}" },
+                            { "key": "X-User-Roles", "value": "target_owner" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}/finalize",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}", "finalize"]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Target",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{ownerId}}" },
+                            { "key": "X-User-Roles", "value": "target_owner" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Participant Endpoints",
+            "item": [{
+                    "name": "Submit Photo",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{participantId}}" },
+                            { "key": "X-User-Email", "value": "participant@test.com" },
+                            { "key": "X-User-Name", "value": "John Participant" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"photoUrl\": \"https://images.unsplash.com/photo-1564399579883-451a5d44ec08\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}/submit",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}", "submit"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get My Submission",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{participantId}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}/my-submission",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}", "my-submission"]
+                        }
+                    }
+                },
+                {
+                    "name": "Rate Target (Thumbs Up)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{participantId}}" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"rating\": \"thumbs-up\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}/rate",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}", "rate"]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete My Submission",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "X-User-Id", "value": "{{participantId}}" }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/targets/{{targetId}}/my-submission",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["targets", "{{targetId}}", "my-submission"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Health Check",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{baseUrl}}/health",
+                    "host": ["{{baseUrl}}"],
+                    "path": ["health"]
+                }
+            }
+        }
+    ]
+}

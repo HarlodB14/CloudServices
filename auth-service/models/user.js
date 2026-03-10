@@ -32,28 +32,18 @@ const userSchema = new mongoose.Schema({
             'view:all_submissions'
         ]
     },
-    location: {
-        type: { type: String, default: 'Point' },
-        coordinates: [Number] // [longitude, latitude]
-    },
     bio: { type: String },
     avatar: { type: String },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// Create geospatial index for location-based queries
-userSchema.index({ location: '2dsphere' });
+// Note: Location field removed - add back if geolocation features are needed
 
-userSchema.pre('save', async function(next) {
-    try {
-        if (this.isModified('password')) {
-            const salt = await bcrypt.genSalt(10);
-            this.password = await bcrypt.hash(this.password, salt);
-        }
-        next();
-    } catch (error) {
-        next(error);
+userSchema.pre('save', async function() {
+    if (this.isModified('password')) {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
     }
 });
 
