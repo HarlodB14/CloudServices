@@ -31,6 +31,14 @@ const targetSchema = new mongoose.Schema({
     // Prize/Info
     prize: { type: String, default: '' },
 
+    // AI Analysis of target image
+    aiAnalysis: {
+        labels: [String],
+        confidence: [Number],
+        timestamp: Date,
+        service: String // 'google-vision' or 'imagga'
+    },
+
     // Submissions & Results
     submissions: [{
         _id: mongoose.Schema.Types.ObjectId,

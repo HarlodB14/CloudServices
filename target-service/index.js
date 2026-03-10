@@ -8,8 +8,8 @@ app.use(express.json());
 // Minimal routes
 const healthRoutes = require('./routes/health');
 const targetsRoutes = require('./routes/targetRoutes');
-app.use('/api', healthRoutes);
-app.use('/api/targets', targetsRoutes);
+app.use('/', healthRoutes);
+app.use('/', targetsRoutes);
 
 const PORT = process.env.PORT || 3002;
 const DB_URL = process.env.DB_URL || 'mongodb://localhost:27017/targets';

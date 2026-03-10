@@ -30,9 +30,7 @@ async function assignRole(req, res) {
                 roles: user.roles
             }
         });
-    } catch (error) {
-        res.status(500).json({ error: 'Server error: ' + error.message });
-    }
+    } catch (error) {}
 }
 
 /**

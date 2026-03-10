@@ -16,10 +16,13 @@ services:
     environment:
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:3001
+      - TARGET_SERVICE_URL=http://target-service:3002
+      - JWT_SECRET=mysecretkey
     ports:
       - "3000:3000"
     depends_on:
       - auth-service
+      - target-service
     networks:
       - photo-prestiges
 
@@ -42,6 +45,7 @@ services:
       - PORT=3002
       - MONGO_URI=mongodb://mongo:27017/target
       - DB_URL=mongodb://mongo:27017/target
+      - JWT_SECRET=mysecretkey
     depends_on:
       - mongo
     networks:

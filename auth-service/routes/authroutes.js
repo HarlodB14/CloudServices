@@ -9,9 +9,8 @@ router.post('/register', authcontroller.register);
 router.post('/login', authcontroller.login);
 
 // Admin routes - require admin role
-router.use(verifyServiceToken);
-router.post('/admin/assign-role', requireRole(['admin']), adminController.assignRole);
-router.post('/admin/assign-permissions', requireRole(['admin']), adminController.assignPermissions);
-router.get('/user/:userId', adminController.getUserInfo);
+router.post('/admin/assign-role', verifyServiceToken, requireRole(['admin']), adminController.assignRole);
+router.post('/admin/assign-permissions', verifyServiceToken, requireRole(['admin']), adminController.assignPermissions);
+router.get('/user/:userId', verifyServiceToken, adminController.getUserInfo);
 
 module.exports = router;

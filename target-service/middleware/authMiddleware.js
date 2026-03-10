@@ -1,10 +1,29 @@
+const jwt = require('jsonwebtoken');
+
 /**
  * Extract user id/roles from headers inserted by the API gateway.  The gateway
  * must send X-User-Id, X-User-Roles (comma-separated) and X-User-Email.
  */
 function verifyTargetOwnership(req, res, next) {
-    const userId = req.headers['x-user-id'];
-    const userRoles = req.headers['x-user-roles']?.split(',') || [];
+    let userId = req.headers['x-user-id'];
+    let userRoles = req.headers['x-user-roles']?.split(',') || [];
+
+    // Fallback: read identity from JWT when gateway did not inject headers
+    if (!userId) {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.userId;
+                userRoles = decoded.roles || [];
+                req.userEmail = decoded.email;
+            } catch (error) {
+                // Ignore token parse errors here; handled by missing user check below
+            }
+        }
+    }
 
     if (!userId) {
         return res.status(401).json({ error: 'User ID not provided' });
