@@ -1,10 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
 const { verifyToken, requireParticipant, requireTargetOwner, requireAdmin, requirePermission } = require('./middleware/photoPrestigeAuth');
 
 const app = express();
-app.use(express.json());
 
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
 const TARGET_SERVICE_URL = process.env.TARGET_SERVICE_URL || 'http://target-service:3002';
@@ -22,18 +21,21 @@ app.get('/health', (req, res) => {
 app.use('/auth', createProxyMiddleware({
     target: AUTH_SERVICE_URL,
     changeOrigin: true,
-    pathRewrite: { '^/auth': '/auth' },
+    pathRewrite: (path) => `/auth${path}`,
     timeout: 5000,
     proxyTimeout: 5000,
-    onProxyReq(proxyReq, req, res) {
-        console.log(`[AUTH] ${req.method} ${req.originalUrl}`);
-    },
-    onError(err, req, res) {
-        console.error('[AUTH] Proxy error:', err.message);
-        res.status(502).json({
-            error: 'Authentication Service Unavailable',
-            message: err.message
-        });
+    on: {
+        proxyReq(proxyReq, req) {
+            fixRequestBody(proxyReq, req);
+            console.log(`[AUTH] ${req.method} ${req.originalUrl}`);
+        },
+        error(err, req, res) {
+            console.error('[AUTH] Proxy error:', err.message);
+            res.status(502).json({
+                error: 'Authentication Service Unavailable',
+                message: err.message
+            });
+        }
     }
 }));
 
@@ -46,12 +48,14 @@ const publicTargetsProxy = createProxyMiddleware({
     target: TARGET_SERVICE_URL,
     changeOrigin: true,
     pathRewrite: { '^/api/targets': '/targets' },
-    onProxyReq(proxyReq, req, res) {
-        console.log(`[TARGETS-PUBLIC] Proxying ${req.method} ${req.path} -> ${TARGET_SERVICE_URL}/targets${req.path}`);
-    },
-    onError(err, req, res) {
-        console.error('[PROXY ERROR]', err.message);
-        res.status(502).json({ error: 'Target service error', message: err.message });
+    on: {
+        proxyReq(proxyReq, req) {
+            console.log(`[TARGETS-PUBLIC] Proxying ${req.method} ${req.path} -> ${TARGET_SERVICE_URL}/targets${req.path}`);
+        },
+        error(err, req, res) {
+            console.error('[PROXY ERROR]', err.message);
+            res.status(502).json({ error: 'Target service error', message: err.message });
+        }
     }
 });
 
@@ -78,7 +82,7 @@ app.post('/api/targets',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
-        onProxyReq: forwardUserHeaders
+        on: { proxyReq: forwardUserHeaders }
     })
 );
 
@@ -89,7 +93,7 @@ app.put('/api/targets/:id',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
-        onProxyReq: forwardUserHeaders
+        on: { proxyReq: forwardUserHeaders }
     })
 );
 
@@ -100,7 +104,73 @@ app.delete('/api/targets/:id',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
-        onProxyReq: forwardUserHeaders
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Submit photo to target (requires participant permission)
+app.post('/api/targets/:id/submit',
+    requireParticipant,
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// View own submission for target
+app.get('/api/targets/:id/my-submission',
+    requirePermission('view:own_submission'),
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Delete own submission for target
+app.delete('/api/targets/:id/my-submission',
+    requirePermission('delete:own_submission'),
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Rate target (thumbs up/down)
+app.post('/api/targets/:id/rate',
+    requireParticipant,
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// View all scores for owned target
+app.get('/api/targets/:id/scores',
+    requirePermission('view:target_scores'),
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Finalize target and determine winner (owner/admin)
+app.post('/api/targets/:id/finalize',
+    requirePermission('manage:target_deadline'),
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
     })
 );
 
@@ -123,6 +193,7 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 function forwardUserHeaders(proxyReq, req) {
+    fixRequestBody(proxyReq, req);
     proxyReq.setHeader('X-User-Id', req.user.userId);
     proxyReq.setHeader('X-User-Email', req.user.email);
     proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));

@@ -1,7 +1,39 @@
 const Target = require('../models/target');
+const jwt = require('jsonwebtoken');
 const { checkTargetOwnership } = require('../middleware/authMiddleware');
 const { analyzeAndScore, analyzeTargetImage } = require('../services/aiScoringService');
 const TargetValidator = require('../validators/targetValidator');
+
+function extractAuthUser(req) {
+    const fromHeaders = {
+        userId: req.userId || req.headers['x-user-id'],
+        email: req.userEmail || req.headers['x-user-email'],
+        name: req.headers['x-user-name'],
+        roles: req.userRoles || (req.headers['x-user-roles']?.split(',') || [])
+    };
+
+    if (fromHeaders.userId) {
+        return fromHeaders;
+    }
+
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) {
+        return fromHeaders;
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        return {
+            userId: decoded.userId,
+            email: decoded.email,
+            name: decoded.name,
+            roles: decoded.roles || []
+        };
+    } catch (error) {
+        return fromHeaders;
+    }
+}
 
 /**
  * Get all targets (public - no auth required)
@@ -98,7 +130,12 @@ async function getTargetById(req, res) {
 async function createTarget(req, res) {
     try {
         const { title, description, imageUrl, location, deadline, prize } = req.body;
-        const userId = req.userId;
+        const authUser = extractAuthUser(req);
+        const userId = authUser.userId;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
 
         // Validate request
         const validation = TargetValidator.validateCreateTarget(req.body);
@@ -128,7 +165,7 @@ async function createTarget(req, res) {
             deadline,
             prize,
             ownerId: userId,
-            ownerEmail: req.headers['x-user-email'],
+            ownerEmail: authUser.email,
             aiAnalysis
         });
 
@@ -149,8 +186,9 @@ async function createTarget(req, res) {
 async function updateTarget(req, res) {
     try {
         const targetId = req.params.id;
-        const userId = req.userId;
-        const userRoles = req.userRoles;
+        const authUser = extractAuthUser(req);
+        const userId = authUser.userId;
+        const userRoles = authUser.roles;
 
         // Validate request
         const validation = TargetValidator.validateUpdateTarget(req.body);
@@ -203,8 +241,9 @@ async function updateTarget(req, res) {
 async function deleteTarget(req, res) {
     try {
         const targetId = req.params.id;
-        const userId = req.userId;
-        const userRoles = req.userRoles;
+        const authUser = extractAuthUser(req);
+        const userId = authUser.userId;
+        const userRoles = authUser.roles;
 
         const target = await Target.findById(targetId);
 
@@ -234,8 +273,9 @@ async function deleteTarget(req, res) {
 async function getTargetScores(req, res) {
     try {
         const targetId = req.params.id;
-        const userId = req.userId;
-        const userRoles = req.userRoles;
+        const authUser = extractAuthUser(req);
+        const userId = authUser.userId;
+        const userRoles = authUser.roles;
 
         const target = await Target.findById(targetId);
 
@@ -277,9 +317,10 @@ async function submitPhoto(req, res) {
     try {
         const targetId = req.params.id;
         const { photoUrl } = req.body;
-        const userId = req.userId || req.headers['x-user-id'];
-        const userEmail = req.headers['x-user-email'];
-        const userName = req.headers['x-user-name'];
+        const authUser = extractAuthUser(req);
+        const userId = authUser.userId;
+        const userEmail = authUser.email;
+        const userName = authUser.name;
 
         if (!userId) {
             return res.status(401).json({ error: 'Authentication required' });
@@ -378,7 +419,7 @@ async function submitPhoto(req, res) {
 async function getMySubmission(req, res) {
     try {
         const targetId = req.params.id;
-        const userId = req.userId || req.headers['x-user-id'];
+        const userId = extractAuthUser(req).userId;
 
         if (!userId) {
             return res.status(401).json({ error: 'Authentication required' });
@@ -414,7 +455,7 @@ async function getMySubmission(req, res) {
 async function deleteMySubmission(req, res) {
     try {
         const targetId = req.params.id;
-        const userId = req.userId || req.headers['x-user-id'];
+        const userId = extractAuthUser(req).userId;
 
         if (!userId) {
             return res.status(401).json({ error: 'Authentication required' });
@@ -456,7 +497,7 @@ async function deleteMySubmission(req, res) {
 async function rateTarget(req, res) {
     try {
         const targetId = req.params.id;
-        const userId = req.userId || req.headers['x-user-id'];
+        const userId = extractAuthUser(req).userId;
         const { rating } = req.body;
 
         if (!userId) {
@@ -502,8 +543,9 @@ async function rateTarget(req, res) {
 async function finalizeTarget(req, res) {
     try {
         const targetId = req.params.id;
-        const userId = req.userId;
-        const userRoles = req.userRoles;
+        const authUser = extractAuthUser(req);
+        const userId = authUser.userId;
+        const userRoles = authUser.roles;
 
         const target = await Target.findById(targetId);
 
