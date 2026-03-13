@@ -1,5 +1,15 @@
 const axios = require('axios');
 
+const AI_REQUEST_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS || 5000);
+
+function hasImaggaConfig() {
+    return Boolean(process.env.IMAGGA_API_KEY && process.env.IMAGGA_API_SECRET);
+}
+
+function hasGoogleVisionConfig() {
+    return Boolean(process.env.GOOGLE_VISION_API_KEY);
+}
+
 /**
  * AI Scoring Service - Supports both Google Vision and Imagga
  * Configure which service to use via AI_SERVICE env variable
@@ -25,7 +35,8 @@ async function analyzeWithImagga(imageUrl) {
             params: { image_url: imageUrl },
             headers: {
                 'Authorization': `Basic ${auth}`
-            }
+            },
+            timeout: AI_REQUEST_TIMEOUT_MS
         });
 
         const tags = response.data.result.tags;
@@ -69,6 +80,8 @@ async function analyzeWithGoogleVision(imageUrl) {
                         { type: 'LANDMARK_DETECTION', maxResults: 5 }
                     ]
                 }]
+            }, {
+                timeout: AI_REQUEST_TIMEOUT_MS
             }
         );
 
@@ -156,6 +169,30 @@ async function analyzeAndScore(imageUrl, targetAnalysis) {
     try {
         const aiService = process.env.AI_SERVICE || 'imagga';
 
+        if (aiService === 'google-vision' && !hasGoogleVisionConfig()) {
+            return {
+                labels: [],
+                confidence: [],
+                timestamp: new Date(),
+                service: 'google-vision',
+                similarity: 0,
+                skipped: true,
+                reason: 'Google Vision API key not configured'
+            };
+        }
+
+        if (aiService !== 'google-vision' && !hasImaggaConfig()) {
+            return {
+                labels: [],
+                confidence: [],
+                timestamp: new Date(),
+                service: 'imagga',
+                similarity: 0,
+                skipped: true,
+                reason: 'Imagga credentials not configured'
+            };
+        }
+
         let analysis;
         if (aiService === 'google-vision') {
             analysis = await analyzeWithGoogleVision(imageUrl);
@@ -190,6 +227,14 @@ async function analyzeAndScore(imageUrl, targetAnalysis) {
  */
 async function analyzeTargetImage(imageUrl) {
     const aiService = process.env.AI_SERVICE || 'imagga';
+
+    if (aiService === 'google-vision' && !hasGoogleVisionConfig()) {
+        return null;
+    }
+
+    if (aiService !== 'google-vision' && !hasImaggaConfig()) {
+        return null;
+    }
 
     if (aiService === 'google-vision') {
         return await analyzeWithGoogleVision(imageUrl);

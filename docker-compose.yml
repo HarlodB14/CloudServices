@@ -12,23 +12,29 @@ services:
       - photo-prestiges
 
   api-gateway:
-    build: ./api-gateway
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
     environment:
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:3001
       - TARGET_SERVICE_URL=http://target-service:3002
+      - REGISTER_SERVICE_URL=http://register-service:3003
       - JWT_SECRET=mysecretkey
     ports:
       - "3000:3000"
     depends_on:
       - auth-service
       - target-service
+      - register-service
     networks:
       - photo-prestiges
 
   auth-service:
     restart: unless-stopped
-    build: ./auth-service
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
     environment:
       - PORT=3001
       - MONGO_URI=mongodb://mongo:27017/auth
@@ -40,11 +46,27 @@ services:
       - photo-prestiges
 
   target-service:
-    build: ./target-service
+    build:
+      context: .
+      dockerfile: target-service/Dockerfile
     environment:
       - PORT=3002
       - MONGO_URI=mongodb://mongo:27017/target
       - DB_URL=mongodb://mongo:27017/target
+      - JWT_SECRET=mysecretkey
+    depends_on:
+      - mongo
+    networks:
+      - photo-prestiges
+
+  register-service:
+    build:
+      context: .
+      dockerfile: register-service/Dockerfile
+    environment:
+      - PORT=3003
+      - MONGO_URI=mongodb://mongo:27017/register
+      - TARGET_SERVICE_URL=http://target-service:3002
       - JWT_SECRET=mysecretkey
     depends_on:
       - mongo

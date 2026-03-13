@@ -1,11 +1,15 @@
 FROM node:18-alpine
 
-WORKDIR /app
+WORKDIR /workspace
 
-COPY package*.json ./
+COPY auth-utils ./auth-utils
+COPY auth-service ./auth-service
+
+WORKDIR /workspace/auth-utils
 RUN npm install
 
-COPY . .
+WORKDIR /workspace/auth-service
+RUN npm install
 
 EXPOSE 3001
 

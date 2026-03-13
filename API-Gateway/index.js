@@ -1,12 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
-const { verifyToken, requireParticipant, requireTargetOwner, requireAdmin, requirePermission } = require('./middleware/photoPrestigeAuth');
+const { verifyTokenFromHeader, requireParticipant, requireTargetOwner, requireAdmin, requirePermission } = require('@photo-prestige/auth-utils');
 
 const app = express();
 
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
 const TARGET_SERVICE_URL = process.env.TARGET_SERVICE_URL || 'http://target-service:3002';
+const REGISTER_SERVICE_URL = process.env.REGISTER_SERVICE_URL || 'http://register-service:3003';
 const PORT = process.env.PORT || 3000;
 
 app.get('/health', (req, res) => {
@@ -67,7 +68,7 @@ app.get('/api/targets/:id', publicTargetsProxy);
  * PROTECTED ROUTES (Token required after this point)
  * ============================================
  */
-app.use('/api', verifyToken);
+app.use('/api', verifyTokenFromHeader());
 
 /**
  * ============================================
@@ -174,6 +175,39 @@ app.post('/api/targets/:id/finalize',
     })
 );
 
+// Register for target (requires participant)
+app.post('/api/register/:targetId',
+    requireParticipant,
+    createProxyMiddleware({
+        target: REGISTER_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/register': '/register/target' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Withdraw from target (requires participant)
+app.delete('/api/register/:targetId',
+    requireParticipant,
+    createProxyMiddleware({
+        target: REGISTER_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/register': '/register/target' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Check my enrollment for target
+app.get('/api/register/:targetId/my-enrollment',
+    requireParticipant,
+    createProxyMiddleware({
+        target: REGISTER_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/register': '/register/target' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
 // Error handler
 app.use((err, req, res, next) => {
     console.error('Gateway error:', err);
@@ -194,7 +228,15 @@ app.listen(PORT, '0.0.0.0', () => {
 
 function forwardUserHeaders(proxyReq, req) {
     fixRequestBody(proxyReq, req);
-    proxyReq.setHeader('X-User-Id', req.user.userId);
-    proxyReq.setHeader('X-User-Email', req.user.email);
-    proxyReq.setHeader('X-User-Roles', req.user.roles.join(','));
+    const userId = (req.user && req.user.userId) || (req.user && req.user.id);
+    const email = (req.user && req.user.email) || (req.user && req.user.userEmail);
+    const name = (req.user && req.user.name) || (req.user && req.user.userName);
+    const roles = (req.user && req.user.roles) || (req.user && req.user.userRoles) || [];
+    const permissions = (req.user && req.user.permissions) || (req.user && req.user.userPermissions) || [];
+
+    if (userId) proxyReq.setHeader('X-User-Id', userId);
+    if (email) proxyReq.setHeader('X-User-Email', email);
+    if (name) proxyReq.setHeader('X-User-Name', name);
+    proxyReq.setHeader('X-User-Roles', roles.join(','));
+    proxyReq.setHeader('X-User-Permissions', permissions.join(','));
 }
