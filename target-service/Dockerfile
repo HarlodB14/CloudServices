@@ -1,20 +1,16 @@
-# Use a Node 18 base image (required by dependencies)
 FROM node:18-alpine
 
-# Set the working directory
-WORKDIR /usr/src/app
+WORKDIR /workspace
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+COPY auth-utils ./auth-utils
+COPY target-service ./target-service
 
-# Install dependencies
+WORKDIR /workspace/auth-utils
 RUN npm install
 
-# Copy the rest of the application code
-COPY . .
+WORKDIR /workspace/target-service
+RUN npm install
 
-# Expose the port the app runs on (matches .env PORT=3002)
 EXPOSE 3002
 
-# Command to run the application
 CMD ["npm", "start"]

@@ -1,22 +1,21 @@
 {
-    "name": "target-service",
+    "name": "register-service",
     "version": "1.0.0",
-    "description": "Photo Prestige - Target/Competition Management Service",
+    "description": "Competition registration and enrollment service",
     "main": "index.js",
     "scripts": {
         "start": "node index.js",
         "dev": "nodemon index.js"
     },
-    "keywords": ["photo-prestige", "targets", "competitions"],
-    "author": "Photo Prestige Team",
+    "keywords": [],
+    "author": "",
     "license": "ISC",
     "dependencies": {
         "@photo-prestige/auth-utils": "file:../auth-utils",
-        "express": "^5.2.1",
+        "express": "^5.0.1",
         "mongoose": "^7.5.0",
-        "dotenv": "^17.2.3",
-        "jsonwebtoken": "^8.5.1",
-        "axios": "^1.6.0"
+        "jsonwebtoken": "^9.0.0",
+        "dotenv": "^16.3.1"
     },
     "devDependencies": {
         "nodemon": "^3.0.1"
