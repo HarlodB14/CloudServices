@@ -1,4 +1,15 @@
 const Enrollment = require('../models/enrollment');
+const axios = require('axios');
+
+const TARGET_SERVICE_URL = process.env.TARGET_SERVICE_URL || 'http://target-service:3002';
+const TARGET_LOOKUP_TIMEOUT_MS = Number(process.env.TARGET_LOOKUP_TIMEOUT_MS || 5000);
+
+async function fetchTargetById(targetId) {
+    const response = await axios.get(`${TARGET_SERVICE_URL}/targets/${targetId}`, {
+        timeout: TARGET_LOOKUP_TIMEOUT_MS
+    });
+    return response.data;
+}
 
 async function registerForTarget(req, res) {
     try {
@@ -10,6 +21,28 @@ async function registerForTarget(req, res) {
         // Validate input
         if (!targetId || !participantId) {
             return res.status(400).json({ error: 'Target ID and user ID required' });
+        }
+
+        // Business rule: owner cannot register for own target
+        let target;
+        try {
+            target = await fetchTargetById(targetId);
+        } catch (error) {
+            if (error.response && error.response.status === 404) {
+                return res.status(404).json({ error: 'Target not found' });
+            }
+            return res.status(502).json({ error: 'Unable to validate target ownership' });
+        }
+
+        if (target.status && target.status !== 'active') {
+            return res.status(400).json({ error: 'Target registrations are not open' });
+        }
+
+        if (target.ownerId && String(target.ownerId) === String(participantId)) {
+            return res.status(403).json({
+                error: 'Forbidden',
+                message: 'Target owners cannot register for their own target'
+            });
         }
 
         // Check if already enrolled

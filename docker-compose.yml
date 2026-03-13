@@ -66,6 +66,7 @@ services:
     environment:
       - PORT=3003
       - MONGO_URI=mongodb://mongo:27017/register
+      - TARGET_SERVICE_URL=http://target-service:3002
       - JWT_SECRET=mysecretkey
     depends_on:
       - mongo
