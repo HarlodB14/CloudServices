@@ -1,5 +1,6 @@
 const Enrollment = require('../models/enrollment');
 const axios = require('axios');
+const { sendEnrollmentConfirmation } = require('../services/mailServiceClient');
 
 const TARGET_SERVICE_URL = process.env.TARGET_SERVICE_URL || 'http://target-service:3002';
 const TARGET_LOOKUP_TIMEOUT_MS = Number(process.env.TARGET_LOOKUP_TIMEOUT_MS || 5000);
@@ -75,6 +76,25 @@ async function registerForTarget(req, res) {
         });
 
         await enrollment.save();
+
+        try {
+            await sendEnrollmentConfirmation({
+                participantEmail: enrollment.participantEmail,
+                participantName: enrollment.participantName,
+                targetId: String(enrollment.targetId),
+                targetTitle: target.title,
+                deadline: target.deadline
+            }, {
+                userId: req.userId,
+                email: req.userEmail,
+                name: req.userName,
+                roles: req.userRoles || (req.user && (req.user.userRoles || req.user.roles)) || [],
+                permissions: req.userPermissions || (req.user && (req.user.userPermissions || req.user.permissions)) || []
+            });
+        } catch (mailError) {
+            console.error('Enrollment confirmation email failed:', mailError.message);
+            // Do not fail enrollment if mail service is unavailable
+        }
 
         res.status(201).json({
             message: 'Successfully enrolled for target',

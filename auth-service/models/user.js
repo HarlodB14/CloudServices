@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema({
     },
     bio: { type: String },
     avatar: { type: String },
+    mustChangePassword: { type: Boolean, default: false },
+    passwordChangedAt: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -41,6 +43,8 @@ const userSchema = new mongoose.Schema({
 // Note: Location field removed - add back if geolocation features are needed
 
 userSchema.pre('save', async function() {
+    this.updatedAt = new Date();
+
     if (this.isModified('password')) {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
