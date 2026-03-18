@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const scoreServiceClient = require('../services/scoreServiceClient');
 const registerServiceClient = require('../services/registerServiceClient');
 const mailServiceClient = require('../services/mailServiceClient');
+const clockServiceClient = require('../services/clockServiceClient');
 const TargetValidator = require('../validators/targetValidator');
 
 function extractAuthUser(req) {
@@ -177,6 +178,19 @@ async function createTarget(req, res) {
 
         await newTarget.save();
 
+        try {
+            await clockServiceClient.startClock(newTarget._id.toString(), newTarget.deadline, {
+                userId: authUser.userId,
+                email: authUser.email,
+                name: authUser.name,
+                roles: authUser.roles || [],
+                permissions: authUser.permissions || []
+            });
+        } catch (clockError) {
+            console.error('Failed to start competition clock:', clockError.message);
+            // Do not fail target creation if clock-service is temporarily unavailable
+        }
+
         res.status(201).json({
             message: 'Target created successfully',
             target: newTarget
@@ -232,6 +246,20 @@ async function updateTarget(req, res) {
             updates, { new: true, runValidators: true }
         );
 
+        if (updates.deadline) {
+            try {
+                await clockServiceClient.startClock(updatedTarget._id.toString(), updatedTarget.deadline, {
+                    userId: authUser.userId,
+                    email: authUser.email,
+                    name: authUser.name,
+                    roles: authUser.roles || [],
+                    permissions: authUser.permissions || []
+                });
+            } catch (clockError) {
+                console.error('Failed to reschedule competition clock:', clockError.message);
+            }
+        }
+
         res.json({
             message: 'Target updated successfully',
             target: updatedTarget
@@ -266,6 +294,18 @@ async function deleteTarget(req, res) {
         }
 
         await Target.findByIdAndDelete(targetId);
+
+        try {
+            await clockServiceClient.cancelClock(targetId, {
+                userId: authUser.userId,
+                email: authUser.email,
+                name: authUser.name,
+                roles: authUser.roles || [],
+                permissions: authUser.permissions || []
+            });
+        } catch (clockError) {
+            console.error('Failed to cancel competition clock:', clockError.message);
+        }
 
         res.json({ message: 'Target deleted successfully' });
     } catch (error) {

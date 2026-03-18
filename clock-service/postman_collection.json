@@ -1,0 +1,226 @@
+{
+    "info": {
+        "_postman_id": "1df5f68f-f35b-4f3d-8f4b-15fae2972027",
+        "name": "Photo Prestige - Clock Service Tests",
+        "description": "Clock-service focused test collection. Includes direct clock endpoints and optional end-to-end flow setup.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        { "key": "clockBaseUrl", "value": "http://localhost:3006", "type": "string" },
+        { "key": "clockApi", "value": "{{clockBaseUrl}}/clock", "type": "string" },
+        { "key": "gatewayUrl", "value": "http://localhost:3000", "type": "string" },
+        { "key": "authUrl", "value": "http://localhost:3000/auth", "type": "string" },
+        { "key": "ownerEmail", "value": "clock.owner+001@test.com", "type": "string" },
+        { "key": "ownerTempPassword", "value": "", "type": "string" },
+        { "key": "ownerToken", "value": "", "type": "string" },
+        { "key": "targetId", "value": "", "type": "string" },
+        { "key": "deadlineIso", "value": "", "type": "string" }
+    ],
+    "item": [{
+            "name": "A - Direct clock endpoints",
+            "item": [{
+                    "name": "GET /clock/health",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{clockApi}}/health",
+                            "host": ["{{clockApi}}"],
+                            "path": ["health"]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /clock/targets/start (manual)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "X-User-Id", "value": "clock-service-system" },
+                            { "key": "X-User-Email", "value": "clock-service@internal.local" },
+                            { "key": "X-User-Name", "value": "Clock Service System" },
+                            { "key": "X-User-Roles", "value": "admin" },
+                            { "key": "X-User-Permissions", "value": "manage:target_deadline" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"targetId\": \"{{targetId}}\",\n  \"deadline\": \"{{deadlineIso}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{clockApi}}/targets/start",
+                            "host": ["{{clockApi}}"],
+                            "path": ["targets", "start"]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /clock/targets/:targetId",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "X-User-Id", "value": "clock-service-system" },
+                            { "key": "X-User-Email", "value": "clock-service@internal.local" },
+                            { "key": "X-User-Name", "value": "Clock Service System" },
+                            { "key": "X-User-Roles", "value": "admin" },
+                            { "key": "X-User-Permissions", "value": "manage:target_deadline" }
+                        ],
+                        "url": {
+                            "raw": "{{clockApi}}/targets/{{targetId}}",
+                            "host": ["{{clockApi}}"],
+                            "path": ["targets", "{{targetId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /clock/targets/:targetId",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "X-User-Id", "value": "clock-service-system" },
+                            { "key": "X-User-Email", "value": "clock-service@internal.local" },
+                            { "key": "X-User-Name", "value": "Clock Service System" },
+                            { "key": "X-User-Roles", "value": "admin" },
+                            { "key": "X-User-Permissions", "value": "manage:target_deadline" }
+                        ],
+                        "url": {
+                            "raw": "{{clockApi}}/targets/{{targetId}}",
+                            "host": ["{{clockApi}}"],
+                            "path": ["targets", "{{targetId}}"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "B - End-to-end (recommended)",
+            "item": [{
+                    "name": "Register owner (generated credentials)",
+                    "event": [{
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const suffix = Date.now();",
+                                    "pm.collectionVariables.set('ownerEmail', `clock.owner+${suffix}@test.com`);"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                                    "const json = pm.response.json();",
+                                    "pm.collectionVariables.set('ownerTempPassword', json.generatedCredentials.temporaryPassword);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Clock Owner\",\n  \"email\": \"{{ownerEmail}}\",\n  \"registerAs\": \"target_owner\",\n  \"generateCredentials\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{authUrl}}/register",
+                            "host": ["{{authUrl}}"],
+                            "path": ["register"]
+                        }
+                    }
+                },
+                {
+                    "name": "Login owner",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                                "pm.collectionVariables.set('ownerToken', pm.response.json().token);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"{{ownerTempPassword}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{authUrl}}/login",
+                            "host": ["{{authUrl}}"],
+                            "path": ["login"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create target (starts clock automatically)",
+                    "event": [{
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const d = new Date(Date.now() + 120000).toISOString();",
+                                    "pm.collectionVariables.set('deadlineIso', d);"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                                    "const json = pm.response.json();",
+                                    "pm.collectionVariables.set('targetId', json.target._id);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Clock Auto Start Test\",\n  \"description\": \"verify clock starts when target is created\",\n  \"imageUrl\": \"https://images.unsplash.com/photo-1583037189850-1921ae7c6c22\",\n  \"location\": {\n    \"latitude\": 52.36,\n    \"longitude\": 4.88,\n    \"radius\": 50\n  },\n  \"deadline\": \"{{deadlineIso}}\",\n  \"prize\": \"Clock test\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{gatewayUrl}}/api/targets",
+                            "host": ["{{gatewayUrl}}"],
+                            "path": ["api", "targets"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get clock entry for created target",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "X-User-Id", "value": "clock-service-system" },
+                            { "key": "X-User-Email", "value": "clock-service@internal.local" },
+                            { "key": "X-User-Name", "value": "Clock Service System" },
+                            { "key": "X-User-Roles", "value": "admin" },
+                            { "key": "X-User-Permissions", "value": "manage:target_deadline" }
+                        ],
+                        "url": {
+                            "raw": "{{clockApi}}/targets/{{targetId}}",
+                            "host": ["{{clockApi}}"],
+                            "path": ["targets", "{{targetId}}"]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

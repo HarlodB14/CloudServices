@@ -39,6 +39,10 @@ async function registerForTarget(req, res) {
             return res.status(400).json({ error: 'Target registrations are not open' });
         }
 
+        if (target.deadline && new Date(target.deadline) <= new Date()) {
+            return res.status(400).json({ error: 'Target registrations are closed (deadline reached)' });
+        }
+
         if (target.ownerId && String(target.ownerId) === String(participantId)) {
             return res.status(403).json({
                 error: 'Forbidden',
