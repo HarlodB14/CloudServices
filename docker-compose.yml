@@ -20,6 +20,7 @@ services:
       - AUTH_SERVICE_URL=http://auth-service:3001
       - TARGET_SERVICE_URL=http://target-service:3002
       - REGISTER_SERVICE_URL=http://register-service:3003
+      - SCORE_SERVICE_URL=http://score-service:3004
       - JWT_SECRET=mysecretkey
     ports:
       - "3000:3000"
@@ -27,6 +28,7 @@ services:
       - auth-service
       - target-service
       - register-service
+      - score-service
     networks:
       - photo-prestiges
 
@@ -53,9 +55,33 @@ services:
       - PORT=3002
       - MONGO_URI=mongodb://mongo:27017/target
       - DB_URL=mongodb://mongo:27017/target
+      - SCORE_SERVICE_URL=http://score-service:3004
+      - SCORE_REQUEST_TIMEOUT_MS=8000
+      - SCORE_SERVICE_API_KEY=internal-score-key
       - JWT_SECRET=mysecretkey
     depends_on:
       - mongo
+      - score-service
+    networks:
+      - photo-prestiges
+
+  score-service:
+    build:
+      context: .
+      dockerfile: score-service/Dockerfile
+    environment:
+      - PORT=3004
+      - MONGO_URI=mongodb://mongo:27017/score
+      - DB_URL=mongodb://mongo:27017/score
+      - SCORE_SERVICE_API_KEY=internal-score-key
+      - AI_SERVICE=imagga
+      - AI_REQUEST_TIMEOUT_MS=5000
+      - SIMILARITY_WEIGHT=0.7
+      - TIMING_WEIGHT=0.3
+    depends_on:
+      - mongo
+    ports:
+      - "3004:3004"
     networks:
       - photo-prestiges
 

@@ -8,6 +8,7 @@ const app = express();
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
 const TARGET_SERVICE_URL = process.env.TARGET_SERVICE_URL || 'http://target-service:3002';
 const REGISTER_SERVICE_URL = process.env.REGISTER_SERVICE_URL || 'http://register-service:3003';
+const SCORE_SERVICE_URL = process.env.SCORE_SERVICE_URL || 'http://score-service:3004';
 const PORT = process.env.PORT || 3000;
 
 app.get('/health', (req, res) => {
@@ -171,6 +172,17 @@ app.post('/api/targets/:id/finalize',
         target: TARGET_SERVICE_URL,
         changeOrigin: true,
         pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Read leaderboard directly from score service
+app.get('/api/scores/targets/:targetId/leaderboard',
+    requirePermission('view:target_scores'),
+    createProxyMiddleware({
+        target: SCORE_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/scores': '/scores' },
         on: { proxyReq: forwardUserHeaders }
     })
 );
