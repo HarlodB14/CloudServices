@@ -1,0 +1,21 @@
+{
+    "name": "mail-service",
+    "version": "1.0.0",
+    "description": "Photo Prestige - Mail notification and reminders service",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+    },
+    "dependencies": {
+        "@photo-prestige/auth-utils": "file:../auth-utils",
+        "axios": "^1.6.0",
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
+        "mongoose": "^7.5.0",
+        "nodemailer": "^6.10.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    }
+}

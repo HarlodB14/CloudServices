@@ -2,6 +2,8 @@ const Target = require('../models/target');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const scoreServiceClient = require('../services/scoreServiceClient');
+const registerServiceClient = require('../services/registerServiceClient');
+const mailServiceClient = require('../services/mailServiceClient');
 const TargetValidator = require('../validators/targetValidator');
 
 function extractAuthUser(req) {
@@ -9,7 +11,8 @@ function extractAuthUser(req) {
         userId: req.userId || req.headers['x-user-id'],
         email: req.userEmail || req.headers['x-user-email'],
         name: req.headers['x-user-name'],
-        roles: req.userRoles || ((req.headers['x-user-roles'] || '').split(',').filter(Boolean))
+        roles: req.userRoles || ((req.headers['x-user-roles'] || '').split(',').filter(Boolean)),
+        permissions: req.userPermissions || ((req.headers['x-user-permissions'] || '').split(',').filter(Boolean))
     };
 
     if (fromHeaders.userId) {
@@ -28,7 +31,8 @@ function extractAuthUser(req) {
             userId: decoded.userId,
             email: decoded.email,
             name: decoded.name,
-            roles: decoded.roles || []
+            roles: decoded.roles || [],
+            permissions: decoded.permissions || []
         };
     } catch (error) {
         return fromHeaders;
@@ -391,6 +395,22 @@ async function submitPhoto(req, res) {
 
         await target.save();
 
+        try {
+            await registerServiceClient.markSubmissionRecorded(
+                target._id.toString(),
+                userId, {
+                    userId: authUser.userId,
+                    email: authUser.email,
+                    name: authUser.name,
+                    roles: authUser.roles || [],
+                    permissions: authUser.permissions || []
+                }
+            );
+        } catch (registerError) {
+            console.error('Failed to mark enrollment submission state:', registerError.message);
+            // Keep submission successful even if register-service is temporarily unavailable
+        }
+
         res.status(201).json({
             message: 'Photo submitted successfully',
             submission: {
@@ -593,6 +613,26 @@ async function finalizeTarget(req, res) {
 
         target.status = 'completed';
         await target.save();
+
+        try {
+            const finalLeaderboard = await scoreServiceClient.getTargetLeaderboard(targetId, 1, 500);
+            await mailServiceClient.sendFinalResults(targetId, {
+                targetTitle: target.title,
+                deadline: target.deadline,
+                ownerEmail: target.ownerEmail,
+                winner: finalized.winner || null,
+                leaderboard: finalLeaderboard.leaderboard || []
+            }, {
+                userId: authUser.userId,
+                email: authUser.email,
+                name: authUser.name,
+                roles: authUser.roles || [],
+                permissions: authUser.permissions || []
+            });
+        } catch (mailError) {
+            console.error('Failed to send final result emails:', mailError.message);
+            // Keep target finalization successful even if mail service fails
+        }
 
         res.json({
             message: 'Target finalized successfully',

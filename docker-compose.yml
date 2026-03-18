@@ -42,8 +42,10 @@ services:
       - MONGO_URI=mongodb://mongo:27017/auth
       - DB_URL=mongodb://mongo:27017/auth
       - JWT_SECRET=mysecretkey
+      - MAIL_SERVICE_URL=http://mail-service:3005
     depends_on:
       - mongo
+      - mail-service
     networks:
       - photo-prestiges
 
@@ -58,10 +60,15 @@ services:
       - SCORE_SERVICE_URL=http://score-service:3004
       - SCORE_REQUEST_TIMEOUT_MS=8000
       - SCORE_SERVICE_API_KEY=internal-score-key
+      - REGISTER_SERVICE_URL=http://register-service:3003
+      - MAIL_SERVICE_URL=http://mail-service:3005
+      - MAIL_SERVICE_API_KEY=internal-mail-key
       - JWT_SECRET=mysecretkey
     depends_on:
       - mongo
       - score-service
+      - register-service
+      - mail-service
     networks:
       - photo-prestiges
 
@@ -93,7 +100,36 @@ services:
       - PORT=3003
       - MONGO_URI=mongodb://mongo:27017/register
       - TARGET_SERVICE_URL=http://target-service:3002
+      - MAIL_SERVICE_URL=http://mail-service:3005
+      - MAIL_SERVICE_API_KEY=internal-mail-key
       - JWT_SECRET=mysecretkey
+    depends_on:
+      - mongo
+      - mail-service
+    networks:
+      - photo-prestiges
+
+  mail-service:
+    build:
+      context: .
+      dockerfile: mail-service/Dockerfile
+    environment:
+      - PORT=3005
+      - MONGO_URI=mongodb://mongo:27017/mail
+      - DB_URL=mongodb://mongo:27017/mail
+      - TARGET_SERVICE_URL=http://target-service:3002
+      - REGISTER_SERVICE_URL=http://register-service:3003
+      - MAIL_SERVICE_API_KEY=internal-mail-key
+      - MAIL_SERVICE_SYSTEM_USER_ID=mail-service-system
+      - MAIL_SERVICE_SYSTEM_USER_EMAIL=mail-service@internal.local
+      - MAIL_SERVICE_SYSTEM_USER_NAME=Mail Service System
+      - MAIL_SERVICE_SYSTEM_ROLES=admin
+      - MAIL_SERVICE_SYSTEM_PERMISSIONS=manage:target_deadline
+      - REMINDER_JOB_ENABLED=true
+      - REMINDER_JOB_FREQUENCY_MS=300000
+      - MIN_REMINDER_GAP_MINUTES=60
+    ports:
+      - "3005:3005"
     depends_on:
       - mongo
     networks:

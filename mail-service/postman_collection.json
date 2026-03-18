@@ -1,0 +1,342 @@
+{
+    "info": {
+        "_postman_id": "1f7f8440-89d7-4d4f-8c53-a6a5a0ea4f6d",
+        "name": "Photo Prestige - Mail Requirements E2E",
+        "description": "Covers assignment mail requirements: registration confirmation, score emails after finalization, and periodic reminder emails.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        { "key": "gatewayUrl", "value": "http://localhost:3000", "type": "string" },
+        { "key": "authUrl", "value": "http://localhost:3000/auth", "type": "string" },
+        { "key": "mailUrl", "value": "http://localhost:3005/mail", "type": "string" },
+        { "key": "runId", "value": "001", "type": "string" },
+        { "key": "ownerEmail", "value": "owner+{{runId}}@test.com", "type": "string" },
+        { "key": "participant1Email", "value": "participant1+{{runId}}@test.com", "type": "string" },
+        { "key": "participant2Email", "value": "participant2+{{runId}}@test.com", "type": "string" },
+        { "key": "ownerTempPassword", "value": "", "type": "string" },
+        { "key": "participant1TempPassword", "value": "", "type": "string" },
+        { "key": "participant2TempPassword", "value": "", "type": "string" },
+        { "key": "ownerToken", "value": "", "type": "string" },
+        { "key": "participant1Token", "value": "", "type": "string" },
+        { "key": "participant2Token", "value": "", "type": "string" },
+        { "key": "targetId", "value": "", "type": "string" },
+        { "key": "reminderTargetId", "value": "", "type": "string" }
+    ],
+    "item": [{
+            "name": "0 - Health",
+            "item": [{
+                    "name": "Gateway health",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": { "raw": "{{gatewayUrl}}/health", "host": ["{{gatewayUrl}}"], "path": ["health"] }
+                    }
+                },
+                {
+                    "name": "Mail service health",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": { "raw": "http://localhost:3005/health", "protocol": "http", "host": ["localhost"], "port": "3005", "path": ["health"] }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "1 - Requirement: registration confirmation with generated credentials",
+            "item": [{
+                    "name": "Register owner",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('201 created', () => pm.response.to.have.status(201));",
+                                "const json = pm.response.json();",
+                                "pm.test('generatedCredentials present', () => pm.expect(json.generatedCredentials).to.exist);",
+                                "pm.collectionVariables.set('ownerTempPassword', json.generatedCredentials.temporaryPassword);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Target Owner\",\n  \"email\": \"{{ownerEmail}}\",\n  \"registerAs\": \"target_owner\",\n  \"generateCredentials\": true\n}"
+                        },
+                        "url": { "raw": "{{authUrl}}/register", "host": ["{{authUrl}}"], "path": ["register"] }
+                    }
+                },
+                {
+                    "name": "Register participant 1",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('201 created', () => pm.response.to.have.status(201));",
+                                "const json = pm.response.json();",
+                                "pm.test('generatedCredentials present', () => pm.expect(json.generatedCredentials).to.exist);",
+                                "pm.collectionVariables.set('participant1TempPassword', json.generatedCredentials.temporaryPassword);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Participant One\",\n  \"email\": \"{{participant1Email}}\",\n  \"generateCredentials\": true\n}"
+                        },
+                        "url": { "raw": "{{authUrl}}/register", "host": ["{{authUrl}}"], "path": ["register"] }
+                    }
+                },
+                {
+                    "name": "Register participant 2",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('201 created', () => pm.response.to.have.status(201));",
+                                "const json = pm.response.json();",
+                                "pm.test('generatedCredentials present', () => pm.expect(json.generatedCredentials).to.exist);",
+                                "pm.collectionVariables.set('participant2TempPassword', json.generatedCredentials.temporaryPassword);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Participant Two\",\n  \"email\": \"{{participant2Email}}\",\n  \"generateCredentials\": true\n}"
+                        },
+                        "url": { "raw": "{{authUrl}}/register", "host": ["{{authUrl}}"], "path": ["register"] }
+                    }
+                },
+                {
+                    "name": "Login owner (save token)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                                "pm.collectionVariables.set('ownerToken', pm.response.json().token);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"{{ownerTempPassword}}\"\n}"
+                        },
+                        "url": { "raw": "{{authUrl}}/login", "host": ["{{authUrl}}"], "path": ["login"] }
+                    }
+                },
+                {
+                    "name": "Login participant 1 (save token)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                                "pm.collectionVariables.set('participant1Token', pm.response.json().token);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{participant1Email}}\",\n  \"password\": \"{{participant1TempPassword}}\"\n}"
+                        },
+                        "url": { "raw": "{{authUrl}}/login", "host": ["{{authUrl}}"], "path": ["login"] }
+                    }
+                },
+                {
+                    "name": "Login participant 2 (save token)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                                "pm.collectionVariables.set('participant2Token', pm.response.json().token);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{participant2Email}}\",\n  \"password\": \"{{participant2TempPassword}}\"\n}"
+                        },
+                        "url": { "raw": "{{authUrl}}/login", "host": ["{{authUrl}}"], "path": ["login"] }
+                    }
+                },
+                {
+                    "name": "Direct registration confirmation endpoint (optional)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "X-User-Id", "value": "auth-service-system" },
+                            { "key": "X-User-Email", "value": "auth-service@internal.local" },
+                            { "key": "X-User-Name", "value": "Auth Service System" },
+                            { "key": "X-User-Roles", "value": "admin" },
+                            { "key": "X-User-Permissions", "value": "manage:users" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Manual Test\",\n  \"email\": \"manual+{{runId}}@test.com\",\n  \"roles\": [\"participant\"]\n}"
+                        },
+                        "url": { "raw": "{{mailUrl}}/registrations/confirmation", "host": ["{{mailUrl}}"], "path": ["registrations", "confirmation"] }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2 - Requirement: owner sees scores and participant gets score email",
+            "item": [{
+                    "name": "Create target (save targetId)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('201 created', () => pm.response.to.have.status(201));",
+                                "pm.collectionVariables.set('targetId', pm.response.json().target._id);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Score Mail Target {{runId}}\",\n  \"description\": \"Score email flow\",\n  \"imageUrl\": \"https://images.unsplash.com/photo-1583037189850-1921ae7c6c22\",\n  \"location\": {\n    \"latitude\": 52.36,\n    \"longitude\": 4.88,\n    \"radius\": 50\n  },\n  \"deadline\": \"2026-12-31T23:59:00.000Z\",\n  \"prize\": \"Museumjaarkaart\"\n}"
+                        },
+                        "url": { "raw": "{{gatewayUrl}}/api/targets", "host": ["{{gatewayUrl}}"], "path": ["api", "targets"] }
+                    }
+                },
+                {
+                    "name": "Enroll participant 1",
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{participant1Token}}" }],
+                        "url": { "raw": "{{gatewayUrl}}/api/register/{{targetId}}", "host": ["{{gatewayUrl}}"], "path": ["api", "register", "{{targetId}}"] }
+                    }
+                },
+                {
+                    "name": "Submit photo as participant 1",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{participant1Token}}" }
+                        ],
+                        "body": { "mode": "raw", "raw": "{\n  \"photoUrl\": \"https://images.unsplash.com/photo-1564399579883-451a5d44ec08\"\n}" },
+                        "url": { "raw": "{{gatewayUrl}}/api/targets/{{targetId}}/submit", "host": ["{{gatewayUrl}}"], "path": ["api", "targets", "{{targetId}}", "submit"] }
+                    }
+                },
+                {
+                    "name": "Owner views target scores",
+                    "request": {
+                        "method": "GET",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+                        "url": { "raw": "{{gatewayUrl}}/api/targets/{{targetId}}/scores", "host": ["{{gatewayUrl}}"], "path": ["api", "targets", "{{targetId}}", "scores"] }
+                    }
+                },
+                {
+                    "name": "Finalize target (sends owner + participant score mails)",
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{ownerToken}}" }],
+                        "url": { "raw": "{{gatewayUrl}}/api/targets/{{targetId}}/finalize", "host": ["{{gatewayUrl}}"], "path": ["api", "targets", "{{targetId}}", "finalize"] }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3 - Requirement: periodic reminder emails",
+            "item": [{
+                    "name": "Create reminder target (save reminderTargetId)",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('201 created', () => pm.response.to.have.status(201));",
+                                "pm.collectionVariables.set('reminderTargetId', pm.response.json().target._id);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Reminder Target {{runId}}\",\n  \"description\": \"Reminder flow target\",\n  \"imageUrl\": \"https://images.unsplash.com/photo-1583037189850-1921ae7c6c22\",\n  \"location\": {\n    \"latitude\": 52.36,\n    \"longitude\": 4.88,\n    \"radius\": 50\n  },\n  \"deadline\": \"2026-12-31T23:59:00.000Z\",\n  \"prize\": \"Reminder prize\"\n}"
+                        },
+                        "url": { "raw": "{{gatewayUrl}}/api/targets", "host": ["{{gatewayUrl}}"], "path": ["api", "targets"] }
+                    }
+                },
+                {
+                    "name": "Enroll participant 2 (do NOT submit)",
+                    "request": {
+                        "method": "POST",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{participant2Token}}" }],
+                        "url": { "raw": "{{gatewayUrl}}/api/register/{{reminderTargetId}}", "host": ["{{gatewayUrl}}"], "path": ["api", "register", "{{reminderTargetId}}"] }
+                    }
+                },
+                {
+                    "name": "Trigger target reminders (force=true)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "X-User-Id", "value": "mail-service-system" },
+                            { "key": "X-User-Email", "value": "mail-service@internal.local" },
+                            { "key": "X-User-Name", "value": "Mail Service System" },
+                            { "key": "X-User-Roles", "value": "admin" },
+                            { "key": "X-User-Permissions", "value": "manage:target_deadline" }
+                        ],
+                        "url": {
+                            "raw": "{{mailUrl}}/targets/{{reminderTargetId}}/reminders?force=true",
+                            "host": ["{{mailUrl}}"],
+                            "path": ["targets", "{{reminderTargetId}}", "reminders"],
+                            "query": [{ "key": "force", "value": "true" }]
+                        }
+                    }
+                },
+                {
+                    "name": "Run global reminder sweep",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "X-User-Id", "value": "mail-service-system" },
+                            { "key": "X-User-Email", "value": "mail-service@internal.local" },
+                            { "key": "X-User-Name", "value": "Mail Service System" },
+                            { "key": "X-User-Roles", "value": "admin" },
+                            { "key": "X-User-Permissions", "value": "manage:target_deadline" }
+                        ],
+                        "url": { "raw": "{{mailUrl}}/reminders/run", "host": ["{{mailUrl}}"], "path": ["reminders", "run"] }
+                    }
+                }
+            ]
+        }
+    ]
+}
