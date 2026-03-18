@@ -1,7 +1,7 @@
 const Target = require('../models/target');
 const jwt = require('jsonwebtoken');
-const { checkTargetOwnership } = require('../middleware/authMiddleware');
-const { analyzeAndScore, analyzeTargetImage } = require('../services/aiScoringService');
+const mongoose = require('mongoose');
+const scoreServiceClient = require('../services/scoreServiceClient');
 const TargetValidator = require('../validators/targetValidator');
 
 function extractAuthUser(req) {
@@ -9,7 +9,7 @@ function extractAuthUser(req) {
         userId: req.userId || req.headers['x-user-id'],
         email: req.userEmail || req.headers['x-user-email'],
         name: req.headers['x-user-name'],
-        roles: req.userRoles || (req.headers['x-user-roles']?.split(',') || [])
+        roles: req.userRoles || ((req.headers['x-user-roles'] || '').split(',').filter(Boolean))
     };
 
     if (fromHeaders.userId) {
@@ -146,14 +146,16 @@ async function createTarget(req, res) {
             });
         }
 
-        // Analyze target image with AI
-        console.log('Analyzing target image with AI...');
+        // Analyze target image via dedicated score service
+        console.log('Analyzing target image via score service...');
         let aiAnalysis = null;
         try {
-            aiAnalysis = await analyzeTargetImage(imageUrl);
-            console.log('AI Analysis complete:', aiAnalysis.labels.slice(0, 5));
-        } catch (aiError) {
-            console.error('AI analysis failed:', aiError.message);
+            aiAnalysis = await scoreServiceClient.analyzeTargetImage(imageUrl);
+            if (aiAnalysis && aiAnalysis.labels) {
+                console.log('Target AI analysis complete:', aiAnalysis.labels.slice(0, 5));
+            }
+        } catch (scoreError) {
+            console.error('Target image analysis via score service failed:', scoreError.message);
             // Continue without AI analysis - optional feature
         }
 
@@ -291,10 +293,8 @@ async function getTargetScores(req, res) {
             });
         }
 
-        // Sort submissions by final rank (combined score)
-        const sortedSubmissions = target.submissions.sort((a, b) => {
-            return (b.finalRank || 0) - (a.finalRank || 0);
-        });
+        const leaderboardResponse = await scoreServiceClient.getTargetLeaderboard(targetId, 1, 500);
+        const leaderboard = leaderboardResponse.leaderboard || [];
 
         res.json({
             targetId: target._id,
@@ -302,7 +302,7 @@ async function getTargetScores(req, res) {
             status: target.status,
             deadline: target.deadline,
             totalSubmissions: target.submissionCount,
-            submissions: sortedSubmissions,
+            submissions: leaderboard,
             winner: target.winner
         });
     } catch (error) {
@@ -350,45 +350,39 @@ async function submitPhoto(req, res) {
             });
         }
 
-        // Analyze submitted photo with AI
-        console.log('Analyzing submission with AI...');
-        let aiResult = null;
-        let similarity = 0;
+        const submissionId = new mongoose.Types.ObjectId();
+        const submittedAt = new Date();
 
-        try {
-            aiResult = await analyzeAndScore(photoUrl, target.aiAnalysis);
-            similarity = aiResult.similarity;
-            console.log('Submission analysis complete. Similarity:', similarity);
-        } catch (aiError) {
-            console.error('AI analysis failed:', aiError.message);
-            // Continue with 0 score if AI fails
-        }
-
-        // Calculate time bonus (earlier submissions get higher time score)
-        const timeElapsed = Date.now() - new Date(target.createdAt).getTime();
-        const totalTime = new Date(target.deadline).getTime() - new Date(target.createdAt).getTime();
-        const timeRatio = Math.max(0, 1 - (timeElapsed / totalTime));
-        const timeScore = timeRatio * 100;
-
-        // Calculate final rank: 60% similarity + 40% time
-        const finalRank = (similarity * 0.6) + (timeScore * 0.4);
+        console.log('Scoring submission via score service...');
+        const scoreResult = await scoreServiceClient.evaluateSubmission({
+            targetId: target._id.toString(),
+            submissionId: submissionId.toString(),
+            participantId: userId,
+            participantEmail: userEmail,
+            participantName: userName,
+            imageUrl: photoUrl,
+            submittedAt: submittedAt.toISOString(),
+            targetCreatedAt: new Date(target.createdAt).toISOString(),
+            targetDeadline: new Date(target.deadline).toISOString(),
+            targetAnalysis: target.aiAnalysis || null
+        });
 
         // Create submission
         const submission = {
-            _id: new Date(), // MongoDB will generate proper ObjectId
+            _id: submissionId,
             participantId: userId,
             participantEmail: userEmail,
             participantName: userName,
             photoUrl,
-            score: timeScore,
-            similarity,
-            submittedAt: new Date(),
-            finalRank,
-            aiAnalysis: aiResult ? {
-                labels: aiResult.labels,
-                confidence: aiResult.confidence,
-                timestamp: aiResult.timestamp,
-                service: aiResult.service
+            score: scoreResult.timingScore,
+            similarity: scoreResult.visualSimilarity,
+            submittedAt,
+            finalRank: scoreResult.finalScore,
+            aiAnalysis: scoreResult.ai ? {
+                labels: scoreResult.ai.labels,
+                confidence: scoreResult.ai.confidence,
+                timestamp: scoreResult.ai.timestamp,
+                service: scoreResult.ai.service
             } : null
         };
 
@@ -401,9 +395,9 @@ async function submitPhoto(req, res) {
             message: 'Photo submitted successfully',
             submission: {
                 submissionId: submission._id,
-                similarity,
-                timeScore: Math.round(timeScore),
-                finalRank: Math.round(finalRank),
+                similarity: scoreResult.visualSimilarity,
+                timeScore: scoreResult.timingScore,
+                finalRank: scoreResult.finalScore,
                 submittedAt: submission.submittedAt
             }
         });
@@ -576,19 +570,25 @@ async function finalizeTarget(req, res) {
             return res.json({ message: 'Target closed with no submissions' });
         }
 
-        // Find winner (highest finalRank)
-        const sortedSubmissions = target.submissions.sort((a, b) => {
-            return (b.finalRank || 0) - (a.finalRank || 0);
-        });
+        const finalized = await scoreServiceClient.finalizeTarget(targetId);
+        const winningScore = finalized.winner;
 
-        const winningSubmission = sortedSubmissions[0];
+        if (!winningScore) {
+            target.status = 'closed';
+            await target.save();
+            return res.json({ message: 'Target closed with no scored submissions' });
+        }
+
+        const winningSubmission = target.submissions.find(
+            (sub) => sub.participantId.toString() === winningScore.participantId.toString()
+        );
 
         target.winner = {
-            participantId: winningSubmission.participantId,
-            participantEmail: winningSubmission.participantEmail,
-            participantName: winningSubmission.participantName,
-            score: winningSubmission.finalRank,
-            submittedAt: winningSubmission.submittedAt
+            participantId: winningSubmission ? winningSubmission.participantId : winningScore.participantId,
+            participantEmail: winningSubmission ? winningSubmission.participantEmail : winningScore.participantEmail,
+            participantName: winningSubmission ? winningSubmission.participantName : winningScore.participantName,
+            score: winningScore.finalScore,
+            submittedAt: winningSubmission ? winningSubmission.submittedAt : winningScore.calculatedAt
         };
 
         target.status = 'completed';

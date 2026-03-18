@@ -1,0 +1,259 @@
+{
+    "info": {
+        "name": "Score Service",
+        "description": "Photo Prestige - Score Service test collection",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        { "key": "base_url", "value": "http://localhost:3004" },
+        { "key": "service_key", "value": "internal-score-key" },
+        { "key": "target_id", "value": "65f6a1111111111111111111" },
+        { "key": "submission_id", "value": "65f6a2222222222222222222" },
+        { "key": "participant_id", "value": "65f6a3333333333333333333" }
+    ],
+    "item": [{
+            "name": "1 - Health check",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/health",
+                    "host": ["{{base_url}}"],
+                    "path": ["health"]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Service healthy', () => {",
+                        "  const body = pm.response.json();",
+                        "  pm.expect(body.status).to.include('healthy');",
+                        "});"
+                    ]
+                }
+            }]
+        },
+        {
+            "name": "2 - Analyze target image (AI)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" },
+                    { "key": "x-service-key", "value": "{{service_key}}" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"imageUrl\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/scores/targets/analyze",
+                    "host": ["{{base_url}}"],
+                    "path": ["scores", "targets", "analyze"]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Has analysis', () => {",
+                        "  const body = pm.response.json();",
+                        "  pm.expect(body).to.have.property('analysis');",
+                        "});"
+                    ]
+                }
+            }]
+        },
+        {
+            "name": "3 - Reject without service key (401)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/scores/evaluations",
+                    "host": ["{{base_url}}"],
+                    "path": ["scores", "evaluations"]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Rejected with 401', () => pm.response.to.have.status(401));"
+                    ]
+                }
+            }]
+        },
+        {
+            "name": "4 - Reject missing fields (400)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" },
+                    { "key": "x-service-key", "value": "{{service_key}}" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/scores/evaluations",
+                    "host": ["{{base_url}}"],
+                    "path": ["scores", "evaluations"]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Rejected with 400', () => pm.response.to.have.status(400));",
+                        "pm.test('Lists required fields', () => {",
+                        "  const body = pm.response.json();",
+                        "  pm.expect(body).to.have.property('required');",
+                        "  pm.expect(body.required).to.be.an('array').that.is.not.empty;",
+                        "});"
+                    ]
+                }
+            }]
+        },
+        {
+            "name": "5 - Evaluate submission (AI skipped, timing scored)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "Content-Type", "value": "application/json" },
+                    { "key": "x-service-key", "value": "{{service_key}}" }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"targetId\":       \"{{target_id}}\",\n  \"submissionId\":   \"{{submission_id}}\",\n  \"participantId\":  \"{{participant_id}}\",\n  \"participantEmail\": \"participant@example.com\",\n  \"participantName\":  \"Test Participant\",\n  \"imageUrl\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg\",\n  \"submittedAt\":      \"2026-03-17T15:30:00.000Z\",\n  \"targetCreatedAt\":  \"2026-03-17T15:00:00.000Z\",\n  \"targetDeadline\":   \"2026-03-17T16:00:00.000Z\",\n  \"targetAnalysis\": {\n    \"labels\":     [\"cat\", \"animal\", \"fur\", \"kitten\"],\n    \"confidence\": [95, 90, 80, 75]\n  }\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/scores/evaluations",
+                    "host": ["{{base_url}}"],
+                    "path": ["scores", "evaluations"]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Score returned', () => {",
+                        "  const body = pm.response.json();",
+                        "  pm.expect(body).to.have.property('finalScore');",
+                        "  pm.expect(body.finalScore).to.be.a('number');",
+                        "  pm.expect(body).to.have.property('timingScore');",
+                        "  pm.expect(body).to.have.property('visualSimilarity');",
+                        "  pm.expect(body).to.have.property('scoringDetails');",
+                        "  pm.expect(body.scoringDetails).to.have.property('formula');",
+                        "  console.log('finalScore:', body.finalScore, '| timing:', body.timingScore, '| similarity:', body.visualSimilarity);",
+                        "  console.log('formula:', body.scoringDetails.formula);",
+                        "});"
+                    ]
+                }
+            }]
+        },
+        {
+            "name": "6 - Leaderboard for target",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/scores/targets/{{target_id}}/leaderboard?page=1&limit=10",
+                    "host": ["{{base_url}}"],
+                    "path": ["scores", "targets", "{{target_id}}", "leaderboard"],
+                    "query": [
+                        { "key": "page", "value": "1" },
+                        { "key": "limit", "value": "10" }
+                    ]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Has leaderboard and pagination', () => {",
+                        "  const body = pm.response.json();",
+                        "  pm.expect(body).to.have.property('leaderboard');",
+                        "  pm.expect(body.leaderboard).to.be.an('array');",
+                        "  pm.expect(body).to.have.property('pagination');",
+                        "  pm.expect(body.pagination).to.have.property('total');",
+                        "  console.log('Total scores:', body.pagination.total);",
+                        "});"
+                    ]
+                }
+            }]
+        },
+        {
+            "name": "7 - Get participant score",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/scores/targets/{{target_id}}/participants/{{participant_id}}",
+                    "host": ["{{base_url}}"],
+                    "path": ["scores", "targets", "{{target_id}}", "participants", "{{participant_id}}"]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status 200 or 404', () => {",
+                        "  pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                        "});",
+                        "if (pm.response.code === 200) {",
+                        "  pm.test('Has finalScore', () => {",
+                        "    const body = pm.response.json();",
+                        "    pm.expect(body).to.have.property('finalScore');",
+                        "    console.log('Score for participant:', body.finalScore);",
+                        "  });",
+                        "}"
+                    ]
+                }
+            }]
+        },
+        {
+            "name": "8 - Finalize target (assign ranks)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    { "key": "x-service-key", "value": "{{service_key}}" }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/scores/targets/{{target_id}}/finalize",
+                    "host": ["{{base_url}}"],
+                    "path": ["scores", "targets", "{{target_id}}", "finalize"]
+                }
+            },
+            "event": [{
+                "listen": "test",
+                "script": {
+                    "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Winner declared', () => {",
+                        "  const body = pm.response.json();",
+                        "  pm.expect(body).to.have.property('winner');",
+                        "  if (body.winner) {",
+                        "    pm.expect(body.winner).to.have.property('rank');",
+                        "    pm.expect(body.winner.rank).to.equal(1);",
+                        "    pm.expect(body.winner).to.have.property('percentile');",
+                        "    console.log('Winner:', body.winner.participantEmail, '| score:', body.winner.finalScore, '| rank:', body.winner.rank);",
+                        "  }",
+                        "});"
+                    ]
+                }
+            }]
+        }
+    ]
+}
