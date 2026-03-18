@@ -60,6 +60,8 @@ services:
       - SCORE_SERVICE_URL=http://score-service:3004
       - SCORE_REQUEST_TIMEOUT_MS=8000
       - SCORE_SERVICE_API_KEY=internal-score-key
+      - CLOCK_SERVICE_URL=http://clock-service:3006
+      - CLOCK_REQUEST_TIMEOUT_MS=7000
       - REGISTER_SERVICE_URL=http://register-service:3003
       - MAIL_SERVICE_URL=http://mail-service:3005
       - MAIL_SERVICE_API_KEY=internal-mail-key
@@ -132,6 +134,32 @@ services:
       - "3005:3005"
     depends_on:
       - mongo
+    networks:
+      - photo-prestiges
+
+  clock-service:
+    build:
+      context: .
+      dockerfile: clock-service/Dockerfile
+    environment:
+      - PORT=3006
+      - MONGO_URI=mongodb://mongo:27017/clock
+      - DB_URL=mongodb://mongo:27017/clock
+      - REGISTER_SERVICE_URL=http://register-service:3003
+      - TARGET_SERVICE_URL=http://target-service:3002
+      - CLOCK_REQUEST_TIMEOUT_MS=7000
+      - CLOCK_AUTO_FINALIZE=true
+      - CLOCK_SERVICE_SYSTEM_USER_ID=clock-service-system
+      - CLOCK_SERVICE_SYSTEM_USER_EMAIL=clock-service@internal.local
+      - CLOCK_SERVICE_SYSTEM_USER_NAME=Clock Service System
+      - CLOCK_SERVICE_SYSTEM_ROLES=admin
+      - CLOCK_SERVICE_SYSTEM_PERMISSIONS=manage:target_deadline
+    ports:
+      - "3006:3006"
+    depends_on:
+      - mongo
+      - register-service
+      - target-service
     networks:
       - photo-prestiges
 

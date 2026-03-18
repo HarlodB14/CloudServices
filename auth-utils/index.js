@@ -29,6 +29,56 @@ function normalizeUser(req, source = {}) {
     req.isAdmin = roles.includes('admin');
 }
 
+function toStringArray(value) {
+    if (Array.isArray(value)) {
+        return value.map((entry) => String(entry).trim()).filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+    }
+
+    return [];
+}
+
+/**
+ * Build internal identity headers for service-to-service HTTP calls.
+ * Useful for background jobs that run without an incoming Express request.
+ */
+function buildIdentityHeaders(identity = {}) {
+    const {
+        userId,
+        email,
+        name,
+        roles = [],
+        permissions = [],
+        contentType = 'application/json'
+    } = identity;
+
+    const headers = {};
+
+    if (contentType) {
+        headers['Content-Type'] = contentType;
+    }
+
+    if (userId) {
+        headers['X-User-Id'] = String(userId);
+    }
+
+    if (email) {
+        headers['X-User-Email'] = String(email);
+    }
+
+    if (name) {
+        headers['X-User-Name'] = String(name);
+    }
+
+    headers['X-User-Roles'] = toStringArray(roles).join(',');
+    headers['X-User-Permissions'] = toStringArray(permissions).join(',');
+
+    return headers;
+}
+
 /**
  * Verify JWT token from Authorization header (Bearer TOKEN)
  * Used at entry points to validate token signature and extract user info
@@ -222,5 +272,6 @@ module.exports = {
     requireAdmin,
 
     // Helper utilities
-    checkOwnership
+    checkOwnership,
+    buildIdentityHeaders
 };
