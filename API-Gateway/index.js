@@ -64,6 +64,18 @@ const publicTargetsProxy = createProxyMiddleware({
 app.get('/api/targets', publicTargetsProxy);
 app.get('/api/targets/:id', publicTargetsProxy);
 
+app.use('/media', createProxyMiddleware({
+    target: TARGET_SERVICE_URL,
+    changeOrigin: true,
+    pathRewrite: (path) => `/media${path}`,
+    on: {
+        error(err, req, res) {
+            console.error('[MEDIA] Proxy error:', err.message);
+            res.status(502).json({ error: 'Media service error', message: err.message });
+        }
+    }
+}));
+
 /**
  * ============================================
  * PROTECTED ROUTES (Token required after this point)
@@ -76,6 +88,17 @@ app.use('/api', verifyTokenFromHeader());
  * PROTECTED TARGET SERVICE ROUTES
  * ============================================
  */
+
+// Upload image and get cacheable URL
+app.post('/api/uploads',
+    requirePermission('upload:submission'),
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/uploads': '/uploads' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
 
 // Create target (requires target_owner role)
 app.post('/api/targets',
@@ -101,6 +124,17 @@ app.put('/api/targets/:id',
 
 // Delete target (requires ownership + target_owner role)
 app.delete('/api/targets/:id',
+    requireTargetOwner,
+    createProxyMiddleware({
+        target: TARGET_SERVICE_URL,
+        changeOrigin: true,
+        pathRewrite: { '^/api/targets': '/targets' },
+        on: { proxyReq: forwardUserHeaders }
+    })
+);
+
+// Owner deletes participant submission for own target
+app.delete('/api/targets/:id/submissions/:submissionId',
     requireTargetOwner,
     createProxyMiddleware({
         target: TARGET_SERVICE_URL,

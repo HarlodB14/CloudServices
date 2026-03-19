@@ -6,6 +6,12 @@ const registerServiceClient = require('../services/registerServiceClient');
 const mailServiceClient = require('../services/mailServiceClient');
 const clockServiceClient = require('../services/clockServiceClient');
 const TargetValidator = require('../validators/targetValidator');
+const {
+    parseBase64Image,
+    fetchImageBuffer,
+    computeImageHashFromUrl,
+    saveUploadedImage
+} = require('../services/imageStorageService');
 
 function extractAuthUser(req) {
     const fromHeaders = {
@@ -50,6 +56,8 @@ async function getAllTargets(req, res) {
             latitude,
             longitude,
             radius, // in km
+            city,
+            placeName,
             status,
             search,
             limit = 50,
@@ -69,8 +77,19 @@ async function getAllTargets(req, res) {
         if (search) {
             query.$or = [
                 { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { description: { $regex: search, $options: 'i' } },
+                { locationDescription: { $regex: search, $options: 'i' } },
+                { 'location.city': { $regex: search, $options: 'i' } },
+                { 'location.placeName': { $regex: search, $options: 'i' } }
             ];
+        }
+
+        if (city) {
+            query['location.city'] = { $regex: String(city), $options: 'i' };
+        }
+
+        if (placeName) {
+            query['location.placeName'] = { $regex: String(placeName), $options: 'i' };
         }
 
         // Geospatial query if location provided
@@ -90,7 +109,7 @@ async function getAllTargets(req, res) {
         }
 
         const targets = await Target.find(query)
-            .select('-submissions -aiAnalysis') // Don't return full submissions in list view
+            .select('-submissions -aiAnalysis -imageHash') // Don't return full submissions/internal hash in list view
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip((parseInt(page) - 1) * parseInt(limit));
@@ -112,6 +131,58 @@ async function getAllTargets(req, res) {
 }
 
 /**
+ * Upload image and receive cacheable URL
+ * Supports:
+ * - multipart/form-data with field name `image`
+ * - JSON body with `imageBase64`
+ * - JSON body with `imageUrl` (re-host)
+ */
+async function uploadImage(req, res) {
+    try {
+        const authUser = extractAuthUser(req);
+        if (!authUser.userId) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        let buffer;
+        let mimeType;
+
+        if (req.file && req.file.buffer) {
+            buffer = req.file.buffer;
+            mimeType = req.file.mimetype;
+        } else if (req.body && req.body.imageBase64) {
+            const parsed = parseBase64Image(req.body.imageBase64);
+            buffer = parsed.buffer;
+            mimeType = parsed.mimeType;
+        } else if (req.body && req.body.imageUrl) {
+            const downloaded = await fetchImageBuffer(req.body.imageUrl, req);
+            buffer = downloaded.buffer;
+            mimeType = downloaded.mimeType;
+        } else {
+            return res.status(400).json({
+                error: 'Provide image as multipart file `image`, `imageBase64`, or `imageUrl`'
+            });
+        }
+
+        if (!buffer || !buffer.length) {
+            return res.status(400).json({ error: 'Empty image payload' });
+        }
+
+        const saved = await saveUploadedImage({ buffer, mimeType, req });
+
+        return res.status(201).json({
+            message: 'Image uploaded successfully',
+            imageUrl: saved.imageUrl,
+            imagePath: saved.mediaPath,
+            imageHash: saved.imageHash,
+            size: saved.size
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Image upload failed: ' + error.message });
+    }
+}
+
+/**
  * Get target by ID (public)
  */
 async function getTargetById(req, res) {
@@ -122,7 +193,17 @@ async function getTargetById(req, res) {
             return res.status(404).json({ error: 'Target not found' });
         }
 
-        res.json(target);
+        const payload = target.toObject();
+        delete payload.imageHash;
+        if (Array.isArray(payload.submissions)) {
+            payload.submissions = payload.submissions.map((submission) => {
+                const cleaned = {...submission };
+                delete cleaned.imageHash;
+                return cleaned;
+            });
+        }
+
+        res.json(payload);
     } catch (error) {
         res.status(500).json({ error: 'Server error: ' + error.message });
     }
@@ -134,7 +215,7 @@ async function getTargetById(req, res) {
  */
 async function createTarget(req, res) {
     try {
-        const { title, description, imageUrl, location, deadline, prize } = req.body;
+        const { title, description, locationDescription, imageUrl, location, deadline, prize } = req.body;
         const authUser = extractAuthUser(req);
         const userId = authUser.userId;
 
@@ -151,11 +232,25 @@ async function createTarget(req, res) {
             });
         }
 
+        let targetImageHash;
+        let resolvedImageUrl;
+
+        try {
+            const hashResult = await computeImageHashFromUrl(imageUrl, req);
+            targetImageHash = hashResult.imageHash;
+            resolvedImageUrl = hashResult.resolvedUrl;
+        } catch (hashError) {
+            return res.status(400).json({
+                error: 'Target image must be a valid and reachable image URL',
+                details: hashError.message
+            });
+        }
+
         // Analyze target image via dedicated score service
         console.log('Analyzing target image via score service...');
         let aiAnalysis = null;
         try {
-            aiAnalysis = await scoreServiceClient.analyzeTargetImage(imageUrl);
+            aiAnalysis = await scoreServiceClient.analyzeTargetImage(resolvedImageUrl);
             if (aiAnalysis && aiAnalysis.labels) {
                 console.log('Target AI analysis complete:', aiAnalysis.labels.slice(0, 5));
             }
@@ -167,7 +262,9 @@ async function createTarget(req, res) {
         const newTarget = new Target({
             title,
             description,
-            imageUrl,
+            locationDescription,
+            imageUrl: resolvedImageUrl,
+            imageHash: targetImageHash,
             location,
             deadline,
             prize,
@@ -394,6 +491,34 @@ async function submitPhoto(req, res) {
             });
         }
 
+        let resolvedPhotoUrl;
+        let submissionImageHash;
+        try {
+            const hashResult = await computeImageHashFromUrl(photoUrl, req);
+            resolvedPhotoUrl = hashResult.resolvedUrl;
+            submissionImageHash = hashResult.imageHash;
+        } catch (hashError) {
+            return res.status(400).json({
+                error: 'Submitted photo must be a valid and reachable image URL',
+                details: hashError.message
+            });
+        }
+
+        if (!target.imageHash && target.imageUrl) {
+            try {
+                const targetHashResult = await computeImageHashFromUrl(target.imageUrl, req);
+                target.imageHash = targetHashResult.imageHash;
+            } catch (targetHashError) {
+                console.warn('Unable to compute legacy target image hash:', targetHashError.message);
+            }
+        }
+
+        if (target.imageHash && submissionImageHash === target.imageHash) {
+            return res.status(400).json({
+                error: 'Submitted photo cannot be identical to the original target photo'
+            });
+        }
+
         const submissionId = new mongoose.Types.ObjectId();
         const submittedAt = new Date();
 
@@ -404,7 +529,7 @@ async function submitPhoto(req, res) {
             participantId: userId,
             participantEmail: userEmail,
             participantName: userName,
-            imageUrl: photoUrl,
+            imageUrl: resolvedPhotoUrl,
             submittedAt: submittedAt.toISOString(),
             targetCreatedAt: new Date(target.createdAt).toISOString(),
             targetDeadline: new Date(target.deadline).toISOString(),
@@ -417,7 +542,8 @@ async function submitPhoto(req, res) {
             participantId: userId,
             participantEmail: userEmail,
             participantName: userName,
-            photoUrl,
+            photoUrl: resolvedPhotoUrl,
+            imageHash: submissionImageHash,
             score: scoreResult.timingScore,
             similarity: scoreResult.visualSimilarity,
             submittedAt,
@@ -539,9 +665,70 @@ async function deleteMySubmission(req, res) {
 
         await target.save();
 
+        try {
+            await scoreServiceClient.deleteParticipantScore(targetId, userId);
+        } catch (scoreError) {
+            console.error('Failed to delete score entry after submission removal:', scoreError.message);
+        }
+
         res.json({ message: 'Submission deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Server error: ' + error.message });
+    }
+}
+
+/**
+ * Owner/admin can remove a participant submission from own target
+ */
+async function deleteSubmissionByOwner(req, res) {
+    try {
+        const targetId = req.params.id;
+        const submissionId = req.params.submissionId;
+        const authUser = extractAuthUser(req);
+        const userId = authUser.userId;
+        const userRoles = authUser.roles;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const target = await Target.findById(targetId);
+        if (!target) {
+            return res.status(404).json({ error: 'Target not found' });
+        }
+
+        if (!TargetValidator.checkOwnership(target.ownerId, userId, userRoles)) {
+            return res.status(403).json({
+                error: 'Forbidden',
+                message: 'You can only manage submissions on targets you own'
+            });
+        }
+
+        const submissionIndex = target.submissions.findIndex(
+            (sub) => String(sub._id) === String(submissionId)
+        );
+
+        if (submissionIndex === -1) {
+            return res.status(404).json({ error: 'Submission not found on this target' });
+        }
+
+        const [removedSubmission] = target.submissions.splice(submissionIndex, 1);
+        target.submissionCount = Math.max(0, target.submissionCount - 1);
+        await target.save();
+
+        try {
+            await scoreServiceClient.deleteParticipantScore(targetId, removedSubmission.participantId.toString());
+        } catch (scoreError) {
+            console.error('Failed to delete participant score after owner moderation:', scoreError.message);
+        }
+
+        return res.status(200).json({
+            message: 'Submission deleted by target owner',
+            deletedSubmissionId: removedSubmission._id,
+            participantId: removedSubmission.participantId
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Server error: ' + error.message });
     }
 }
 
@@ -687,6 +874,7 @@ async function finalizeTarget(req, res) {
 module.exports = {
     getAllTargets,
     getTargetById,
+    uploadImage,
     createTarget,
     updateTarget,
     deleteTarget,
@@ -694,6 +882,7 @@ module.exports = {
     submitPhoto,
     getMySubmission,
     deleteMySubmission,
+    deleteSubmissionByOwner,
     rateTarget,
     finalizeTarget
 };

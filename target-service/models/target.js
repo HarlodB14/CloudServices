@@ -4,7 +4,9 @@ const targetSchema = new mongoose.Schema({
     // Competition Info
     title: { type: String, required: true },
     description: { type: String },
+    locationDescription: { type: String, default: '' },
     imageUrl: { type: String, required: true },
+    imageHash: { type: String, default: '' },
 
     // Owner Info
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -15,6 +17,8 @@ const targetSchema = new mongoose.Schema({
     location: {
         longitude: { type: Number, required: true },
         latitude: { type: Number, required: true },
+        city: { type: String, default: '' },
+        placeName: { type: String, default: '' },
         radius: { type: Number, required: true, default: 50 } // in meters
     },
 
@@ -46,6 +50,7 @@ const targetSchema = new mongoose.Schema({
         participantEmail: { type: String, required: true },
         participantName: { type: String },
         photoUrl: { type: String },
+        imageHash: { type: String, default: '' },
         score: { type: Number, default: null }, // 0-100
         similarity: { type: Number, default: null }, // AI score
         submittedAt: { type: Date, default: Date.now },
@@ -78,6 +83,9 @@ targetSchema.index({ ownerId: 1 });
 targetSchema.index({ deadline: 1 });
 targetSchema.index({ status: 1 });
 targetSchema.index({ createdAt: -1 });
+targetSchema.index({ 'location.city': 1 });
+targetSchema.index({ 'location.placeName': 1 });
+targetSchema.index({ imageHash: 1 });
 
 // Hook to update updatedAt on save
 targetSchema.pre('save', function() {

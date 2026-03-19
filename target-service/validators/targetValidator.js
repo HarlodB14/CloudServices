@@ -20,6 +20,13 @@ class TargetValidator {
             errors.push('location must include latitude and longitude');
         }
 
+        if (location && location.radius !== undefined) {
+            const parsedRadius = Number(location.radius);
+            if (Number.isNaN(parsedRadius) || parsedRadius <= 0) {
+                errors.push('location.radius must be a positive number in meters');
+            }
+        }
+
         if (location && location.latitude) {
             const lat = parseFloat(location.latitude);
             if (isNaN(lat) || lat < -90 || lat > 90) {
@@ -54,7 +61,7 @@ class TargetValidator {
      */
     static validateUpdateTarget(body) {
         const errors = [];
-        const allowedFields = ['title', 'description', 'prize', 'deadline'];
+        const allowedFields = ['title', 'description', 'locationDescription', 'prize', 'deadline'];
 
         const providedFields = Object.keys(body);
         const invalidFields = providedFields.filter(field => !allowedFields.includes(field));

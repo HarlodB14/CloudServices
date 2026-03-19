@@ -1,9 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '15mb' }));
+app.use('/media', express.static(path.join(process.cwd(), 'storage', 'uploads')));
 
 // Minimal routes
 const healthRoutes = require('./routes/health');

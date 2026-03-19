@@ -59,9 +59,21 @@ async function getTargetLeaderboard(targetId, page = 1, limit = 100) {
     return response.data;
 }
 
+async function deleteParticipantScore(targetId, participantId) {
+    const response = await axios.delete(
+        `${SCORE_SERVICE_URL}/scores/targets/${targetId}/participants/${participantId}`, {
+            headers: buildHeaders(),
+            timeout: SCORE_REQUEST_TIMEOUT_MS
+        }
+    );
+
+    return response.data;
+}
+
 module.exports = {
     analyzeTargetImage,
     evaluateSubmission,
     finalizeTarget,
-    getTargetLeaderboard
+    getTargetLeaderboard,
+    deleteParticipantScore
 };

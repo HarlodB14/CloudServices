@@ -159,6 +159,29 @@ async function getParticipantScore(req, res) {
     }
 }
 
+async function deleteParticipantScore(req, res) {
+    try {
+        const { targetId, participantId } = req.params;
+
+        const idCheck = ScoreValidator.validateParticipantScoreParams(targetId, participantId);
+        if (!idCheck.isValid) return res.status(400).json({ error: idCheck.error });
+
+        const result = await Score.deleteOne({
+            targetId: new mongoose.Types.ObjectId(targetId),
+            participantId: new mongoose.Types.ObjectId(participantId)
+        });
+
+        return res.status(200).json({
+            message: 'Participant score deleted',
+            targetId,
+            participantId,
+            deletedCount: result.deletedCount || 0
+        });
+    } catch (error) {
+        return res.status(500).json({ error: `Failed to delete participant score: ${error.message}` });
+    }
+}
+
 async function finalizeTargetScores(req, res) {
     try {
         const { targetId } = req.params;
@@ -209,5 +232,6 @@ module.exports = {
     evaluateSubmission,
     getTargetLeaderboard,
     getParticipantScore,
-    finalizeTargetScores
+    finalizeTargetScores,
+    deleteParticipantScore
 };

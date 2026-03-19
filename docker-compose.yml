@@ -66,11 +66,17 @@ services:
       - MAIL_SERVICE_URL=http://mail-service:3005
       - MAIL_SERVICE_API_KEY=internal-mail-key
       - JWT_SECRET=mysecretkey
+      - TARGET_ASSET_BASE_URL=http://localhost:3000
+      - PUBLIC_MEDIA_BASE_URL=http://localhost:3000
+      - INTERNAL_MEDIA_FETCH_BASE_URL=http://api-gateway:3000
+      - UPLOAD_DIR=/workspace/target-service/storage/uploads
     depends_on:
       - mongo
       - score-service
       - register-service
       - mail-service
+    volumes:
+      - ./target-service/storage:/workspace/target-service/storage
     networks:
       - photo-prestiges
 

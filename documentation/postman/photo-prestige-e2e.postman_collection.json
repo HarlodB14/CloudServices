@@ -1,0 +1,453 @@
+{
+    "info": {
+        "_postman_id": "b8fe3a4d-4a16-4c7e-9c77-a6ac35f4e999",
+        "name": "Photo Prestige - Gateway E2E (Updated)",
+        "description": "End-to-end flow for the latest gateway/target updates: uploads, city/place filtering, anti-identical submission rule, owner moderation delete.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        { "key": "gatewayUrl", "value": "http://localhost:3000", "type": "string" },
+        { "key": "authBase", "value": "{{gatewayUrl}}/auth", "type": "string" },
+        { "key": "apiBase", "value": "{{gatewayUrl}}/api", "type": "string" },
+
+        { "key": "ownerEmail", "value": "owner.e2e@example.com", "type": "string" },
+        { "key": "ownerPassword", "value": "", "type": "string" },
+        { "key": "ownerToken", "value": "", "type": "string" },
+
+        { "key": "participantEmail", "value": "participant.e2e@example.com", "type": "string" },
+        { "key": "participantPassword", "value": "", "type": "string" },
+        { "key": "participantToken", "value": "", "type": "string" },
+
+        { "key": "targetImageUrl", "value": "", "type": "string" },
+        { "key": "participantImageUrl", "value": "", "type": "string" },
+        { "key": "targetId", "value": "", "type": "string" },
+        { "key": "submissionId", "value": "", "type": "string" },
+        { "key": "targetDeadlineIso", "value": "", "type": "string" }
+    ],
+    "item": [{
+            "name": "0. Health",
+            "item": [{
+                "name": "GET /health",
+                "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                        "raw": "{{gatewayUrl}}/health",
+                        "host": ["{{gatewayUrl}}"],
+                        "path": ["health"]
+                    }
+                }
+            }]
+        },
+        {
+            "name": "1. Create + Login Owner",
+            "item": [{
+                    "name": "Register owner (target_owner)",
+                    "event": [{
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const suffix = Date.now();",
+                                    "pm.collectionVariables.set('ownerEmail', `owner.e2e+${suffix}@example.com`);"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                                    "const body = pm.response.json();",
+                                    "if (body.generatedCredentials && body.generatedCredentials.temporaryPassword) {",
+                                    "  pm.collectionVariables.set('ownerPassword', body.generatedCredentials.temporaryPassword);",
+                                    "}",
+                                    "pm.test('Owner password captured', () => pm.expect(pm.collectionVariables.get('ownerPassword')).to.be.a('string').and.not.empty);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"E2E Owner\",\n  \"email\": \"{{ownerEmail}}\",\n  \"registerAs\": \"target_owner\",\n  \"generateCredentials\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{authBase}}/register",
+                            "host": ["{{authBase}}"],
+                            "path": ["register"]
+                        }
+                    }
+                },
+                {
+                    "name": "Login owner",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                                "const body = pm.response.json();",
+                                "pm.collectionVariables.set('ownerToken', body.token);",
+                                "pm.test('Owner token captured', () => pm.expect(body.token).to.be.a('string').and.not.empty);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{ownerEmail}}\",\n  \"password\": \"{{ownerPassword}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{authBase}}/login",
+                            "host": ["{{authBase}}"],
+                            "path": ["login"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "2. Create + Login Participant",
+            "item": [{
+                    "name": "Register participant",
+                    "event": [{
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const suffix = Date.now();",
+                                    "pm.collectionVariables.set('participantEmail', `participant.e2e+${suffix}@example.com`);"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                                    "const body = pm.response.json();",
+                                    "if (body.generatedCredentials && body.generatedCredentials.temporaryPassword) {",
+                                    "  pm.collectionVariables.set('participantPassword', body.generatedCredentials.temporaryPassword);",
+                                    "}",
+                                    "pm.test('Participant password captured', () => pm.expect(pm.collectionVariables.get('participantPassword')).to.be.a('string').and.not.empty);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"E2E Participant\",\n  \"email\": \"{{participantEmail}}\",\n  \"generateCredentials\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{authBase}}/register",
+                            "host": ["{{authBase}}"],
+                            "path": ["register"]
+                        }
+                    }
+                },
+                {
+                    "name": "Login participant",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                                "const body = pm.response.json();",
+                                "pm.collectionVariables.set('participantToken', body.token);",
+                                "pm.test('Participant token captured', () => pm.expect(body.token).to.be.a('string').and.not.empty);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{participantEmail}}\",\n  \"password\": \"{{participantPassword}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{authBase}}/login",
+                            "host": ["{{authBase}}"],
+                            "path": ["login"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "3. Upload Images",
+            "item": [{
+                    "name": "Owner upload target image via imageUrl",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                                "const body = pm.response.json();",
+                                "pm.collectionVariables.set('targetImageUrl', body.imageUrl);",
+                                "pm.test('targetImageUrl set', () => pm.expect(body.imageUrl).to.be.a('string').and.not.empty);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{ownerToken}}" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imageUrl\": \"https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{apiBase}}/uploads",
+                            "host": ["{{apiBase}}"],
+                            "path": ["uploads"]
+                        }
+                    }
+                },
+                {
+                    "name": "Participant upload candidate image via imageUrl",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                                "const body = pm.response.json();",
+                                "pm.collectionVariables.set('participantImageUrl', body.imageUrl);",
+                                "pm.test('participantImageUrl set', () => pm.expect(body.imageUrl).to.be.a('string').and.not.empty);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{participantToken}}" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imageUrl\": \"https://upload.wikimedia.org/wikipedia/commons/7/7d/Dog_face.png\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{apiBase}}/uploads",
+                            "host": ["{{apiBase}}"],
+                            "path": ["uploads"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "4. Create Target + Filters",
+            "item": [{
+                    "name": "Create target",
+                    "event": [{
+                            "listen": "prerequest",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "const deadline = new Date(Date.now() + (2 * 60 * 60 * 1000)).toISOString();",
+                                    "pm.collectionVariables.set('targetDeadlineIso', deadline);"
+                                ]
+                            }
+                        },
+                        {
+                            "listen": "test",
+                            "script": {
+                                "type": "text/javascript",
+                                "exec": [
+                                    "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                                    "const body = pm.response.json();",
+                                    "pm.collectionVariables.set('targetId', body.target._id);",
+                                    "pm.test('targetId captured', () => pm.expect(body.target._id).to.be.a('string').and.not.empty);"
+                                ]
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{ownerToken}}" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"E2E Target - Amsterdam\",\n  \"description\": \"Find this exact camera position\",\n  \"locationDescription\": \"Near Rijksmuseum open square\",\n  \"imageUrl\": \"https://httpbin.org/image/jpeg\",\n  \"location\": {\n    \"latitude\": 52.359997,\n    \"longitude\": 4.885219,\n    \"radius\": 100,\n    \"city\": \"Amsterdam\",\n    \"placeName\": \"Rijksmuseum\"\n  },\n  \"deadline\": \"{{targetDeadlineIso}}\",\n  \"prize\": \"Museum year pass\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{apiBase}}/targets",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets"]
+                        }
+                    }
+                },
+                {
+                    "name": "Filter targets by city",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{apiBase}}/targets?city=Amsterdam",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets"],
+                            "query": [
+                                { "key": "city", "value": "Amsterdam" }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Filter targets by placeName",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{apiBase}}/targets?placeName=Rijksmuseum",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets"],
+                            "query": [
+                                { "key": "placeName", "value": "Rijksmuseum" }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. Participant Join + Submit",
+            "item": [{
+                    "name": "Register participant for target",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{participantToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{apiBase}}/register/{{targetId}}",
+                            "host": ["{{apiBase}}"],
+                            "path": ["register", "{{targetId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Reject identical submission (same as target image)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{participantToken}}" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"photoUrl\": \"https://httpbin.org/image/jpeg\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{apiBase}}/targets/{{targetId}}/submit",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets", "{{targetId}}", "submit"]
+                        }
+                    }
+                },
+                {
+                    "name": "Submit participant photo",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "type": "text/javascript",
+                            "exec": [
+                                "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                                "const body = pm.response.json();",
+                                "pm.collectionVariables.set('submissionId', body.submission.submissionId);",
+                                "pm.test('submissionId captured', () => pm.expect(body.submission.submissionId).to.be.a('string').and.not.empty);"
+                            ]
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{participantToken}}" },
+                            { "key": "Content-Type", "value": "application/json" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"photoUrl\": \"https://httpbin.org/image/png\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{apiBase}}/targets/{{targetId}}/submit",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets", "{{targetId}}", "submit"]
+                        }
+                    }
+                },
+                {
+                    "name": "Get my submission",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{participantToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{apiBase}}/targets/{{targetId}}/my-submission",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets", "{{targetId}}", "my-submission"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "6. Owner moderation delete",
+            "item": [{
+                    "name": "Owner deletes participant submission",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{apiBase}}/targets/{{targetId}}/submissions/{{submissionId}}",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets", "{{targetId}}", "submissions", "{{submissionId}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Owner views scores",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            { "key": "Authorization", "value": "Bearer {{ownerToken}}" }
+                        ],
+                        "url": {
+                            "raw": "{{apiBase}}/targets/{{targetId}}/scores",
+                            "host": ["{{apiBase}}"],
+                            "path": ["targets", "{{targetId}}", "scores"]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
