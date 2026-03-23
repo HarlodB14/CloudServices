@@ -25,7 +25,8 @@
         "express": "^5.2.1",
         "http-proxy-middleware": "^3.0.5",
         "jsonwebtoken": "^8.5.1",
-        "opossum": "^7.1.0"
+        "opossum": "^7.1.0",
+        "swagger-ui-express": "^5.0.1"
     },
     "description": ""
 }

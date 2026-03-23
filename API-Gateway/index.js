@@ -1,8 +1,10 @@
 require('dotenv').config();
 const express = require('express');
+const swaggerUi = require('swagger-ui-express');
 const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
 const { verifyTokenFromHeader, requireParticipant, requireTargetOwner, requireAdmin, requirePermission } = require('@photo-prestige/auth-utils');
 const { targetBreaker, registerBreaker, scoreBreaker, authBreaker, cbProxy, URLS } = require('./src/serviceClients');
+const swaggerSpec = require('./src/swaggerSpec');
 
 const app = express();
 
@@ -12,6 +14,18 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 3000;
+
+// ============================================================
+// API DOCUMENTATION (OpenAPI + Swagger UI)
+// ============================================================
+app.get('/openapi.json', (req, res) => {
+    res.status(200).json(swaggerSpec);
+});
+
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customSiteTitle: 'Photo Prestige API Docs'
+}));
 
 // ============================================================
 // Health check
