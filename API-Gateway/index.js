@@ -285,4 +285,9 @@ function forwardUserHeaders(proxyReq, req) {
     if (name) proxyReq.setHeader('X-User-Name', name);
     proxyReq.setHeader('X-User-Roles', roles.join(','));
     proxyReq.setHeader('X-User-Permissions', permissions.join(','));
+
+    const internalSecret = String(process.env.INTERNAL_SERVICE_SECRET || '').trim();
+    if (internalSecret) {
+        proxyReq.setHeader('X-Internal-Auth', internalSecret);
+    }
 }

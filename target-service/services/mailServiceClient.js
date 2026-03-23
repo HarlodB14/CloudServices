@@ -12,6 +12,9 @@ function buildHeaders(authContext = {}) {
     headers['X-User-Roles'] = (authContext.roles || []).join(',');
     headers['X-User-Permissions'] = (authContext.permissions || []).join(',');
 
+    const internalSecret = String(process.env.INTERNAL_SERVICE_SECRET || '').trim();
+    if (internalSecret) headers['X-Internal-Auth'] = internalSecret;
+
     return headers;
 }
 

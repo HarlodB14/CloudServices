@@ -7,13 +7,18 @@ function buildSystemHeaders() {
     const roles = (process.env.MAIL_SERVICE_SYSTEM_ROLES || 'admin').split(',').map((value) => value.trim()).filter(Boolean);
     const permissions = (process.env.MAIL_SERVICE_SYSTEM_PERMISSIONS || 'manage:target_deadline').split(',').map((value) => value.trim()).filter(Boolean);
 
-    return {
+    const headers = {
         'X-User-Id': process.env.MAIL_SERVICE_SYSTEM_USER_ID || 'mail-service-system',
         'X-User-Email': process.env.MAIL_SERVICE_SYSTEM_USER_EMAIL || 'mail-service@internal.local',
         'X-User-Name': process.env.MAIL_SERVICE_SYSTEM_USER_NAME || 'Mail Service System',
         'X-User-Roles': roles.join(','),
         'X-User-Permissions': permissions.join(',')
     };
+
+    const internalSecret = String(process.env.INTERNAL_SERVICE_SECRET || '').trim();
+    if (internalSecret) headers['X-Internal-Auth'] = internalSecret;
+
+    return headers;
 }
 
 async function getTargetEnrollments(targetId, status = 'active') {

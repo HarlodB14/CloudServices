@@ -22,6 +22,7 @@ services:
       - REGISTER_SERVICE_URL=http://register-service:3003
       - SCORE_SERVICE_URL=http://score-service:3004
       - JWT_SECRET=mysecretkey
+      - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
     ports:
       - "3000:3000"
     depends_on:
@@ -43,6 +44,7 @@ services:
       - DB_URL=mongodb://mongo:27017/auth
       - JWT_SECRET=mysecretkey
       - MAIL_SERVICE_URL=http://mail-service:3005
+      - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
     depends_on:
       - mongo
       - mail-service
@@ -70,6 +72,7 @@ services:
       - PUBLIC_MEDIA_BASE_URL=http://localhost:3000
       - INTERNAL_MEDIA_FETCH_BASE_URL=http://api-gateway:3000
       - UPLOAD_DIR=/workspace/target-service/storage/uploads
+      - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
     depends_on:
       - mongo
       - score-service
@@ -93,10 +96,9 @@ services:
       - AI_REQUEST_TIMEOUT_MS=5000
       - SIMILARITY_WEIGHT=0.7
       - TIMING_WEIGHT=0.3
+      - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
     depends_on:
       - mongo
-    ports:
-      - "3004:3004"
     networks:
       - photo-prestiges
 
@@ -111,6 +113,7 @@ services:
       - MAIL_SERVICE_URL=http://mail-service:3005
       - MAIL_SERVICE_API_KEY=internal-mail-key
       - JWT_SECRET=mysecretkey
+      - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
     depends_on:
       - mongo
       - mail-service
@@ -136,8 +139,7 @@ services:
       - REMINDER_JOB_ENABLED=true
       - REMINDER_JOB_FREQUENCY_MS=300000
       - MIN_REMINDER_GAP_MINUTES=60
-    ports:
-      - "3005:3005"
+      - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
     depends_on:
       - mongo
     networks:
@@ -160,8 +162,7 @@ services:
       - CLOCK_SERVICE_SYSTEM_USER_NAME=Clock Service System
       - CLOCK_SERVICE_SYSTEM_ROLES=admin
       - CLOCK_SERVICE_SYSTEM_PERMISSIONS=manage:target_deadline
-    ports:
-      - "3006:3006"
+      - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
     depends_on:
       - mongo
       - register-service
