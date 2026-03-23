@@ -217,7 +217,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"imageUrl\": \"https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg\"\n}"
+                            "raw": "{\n  \"imageUrl\": \"https://httpbin.org/image/jpeg\"\n}"
                         },
                         "url": {
                             "raw": "{{apiBase}}/uploads",
@@ -248,7 +248,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"imageUrl\": \"https://upload.wikimedia.org/wikipedia/commons/7/7d/Dog_face.png\"\n}"
+                            "raw": "{\n  \"imageUrl\": \"https://placehold.co/600x400.png\"\n}"
                         },
                         "url": {
                             "raw": "{{apiBase}}/uploads",
@@ -294,7 +294,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"title\": \"E2E Target - Amsterdam\",\n  \"description\": \"Find this exact camera position\",\n  \"locationDescription\": \"Near Rijksmuseum open square\",\n  \"imageUrl\": \"https://httpbin.org/image/jpeg\",\n  \"location\": {\n    \"latitude\": 52.359997,\n    \"longitude\": 4.885219,\n    \"radius\": 100,\n    \"city\": \"Amsterdam\",\n    \"placeName\": \"Rijksmuseum\"\n  },\n  \"deadline\": \"{{targetDeadlineIso}}\",\n  \"prize\": \"Museum year pass\"\n}"
+                            "raw": "{\n  \"title\": \"E2E Target - Amsterdam\",\n  \"description\": \"Find this exact camera position\",\n  \"locationDescription\": \"Near Rijksmuseum open square\",\n  \"imageUrl\": \"{{targetImageUrl}}\",\n  \"location\": {\n    \"latitude\": 52.359997,\n    \"longitude\": 4.885219,\n    \"radius\": 100,\n    \"city\": \"Amsterdam\",\n    \"placeName\": \"Rijksmuseum\"\n  },\n  \"deadline\": \"{{targetDeadlineIso}}\",\n  \"prize\": \"Museum year pass\"\n}"
                         },
                         "url": {
                             "raw": "{{apiBase}}/targets",
@@ -361,7 +361,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"photoUrl\": \"https://httpbin.org/image/jpeg\"\n}"
+                            "raw": "{\n  \"photoUrl\": \"{{targetImageUrl}}\"\n}"
                         },
                         "url": {
                             "raw": "{{apiBase}}/targets/{{targetId}}/submit",
@@ -392,7 +392,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"photoUrl\": \"https://httpbin.org/image/png\"\n}"
+                            "raw": "{\n  \"photoUrl\": \"{{participantImageUrl}}\"\n}"
                         },
                         "url": {
                             "raw": "{{apiBase}}/targets/{{targetId}}/submit",
