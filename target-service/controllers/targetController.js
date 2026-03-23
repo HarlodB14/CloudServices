@@ -2,9 +2,11 @@ const Target = require('../models/target');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const scoreServiceClient = require('../services/scoreServiceClient');
-const registerServiceClient = require('../services/registerServiceClient');
-const mailServiceClient = require('../services/mailServiceClient');
 const clockServiceClient = require('../services/clockServiceClient');
+const {
+    publishSubmissionRecordedEvent,
+    publishTargetFinalizedEvent
+} = require('../services/eventPublisher');
 const TargetValidator = require('../validators/targetValidator');
 const {
     parseBase64Image,
@@ -562,19 +564,14 @@ async function submitPhoto(req, res) {
         await target.save();
 
         try {
-            await registerServiceClient.markSubmissionRecorded(
-                target._id.toString(),
-                userId, {
-                    userId: authUser.userId,
-                    email: authUser.email,
-                    name: authUser.name,
-                    roles: authUser.roles || [],
-                    permissions: authUser.permissions || []
-                }
-            );
-        } catch (registerError) {
-            console.error('Failed to mark enrollment submission state:', registerError.message);
-            // Keep submission successful even if register-service is temporarily unavailable
+            await publishSubmissionRecordedEvent({
+                targetId: target._id.toString(),
+                participantId: userId,
+                submittedAt: submittedAt.toISOString()
+            });
+        } catch (brokerError) {
+            console.error('Failed to publish submission-recorded event:', brokerError.message);
+            // Keep submission successful even if broker is temporarily unavailable
         }
 
         res.status(201).json({
@@ -843,22 +840,17 @@ async function finalizeTarget(req, res) {
 
         try {
             const finalLeaderboard = await scoreServiceClient.getTargetLeaderboard(targetId, 1, 500);
-            await mailServiceClient.sendFinalResults(targetId, {
+            await publishTargetFinalizedEvent({
+                targetId,
                 targetTitle: target.title,
                 deadline: target.deadline,
                 ownerEmail: target.ownerEmail,
                 winner: finalized.winner || null,
                 leaderboard: finalLeaderboard.leaderboard || []
-            }, {
-                userId: authUser.userId,
-                email: authUser.email,
-                name: authUser.name,
-                roles: authUser.roles || [],
-                permissions: authUser.permissions || []
             });
-        } catch (mailError) {
-            console.error('Failed to send final result emails:', mailError.message);
-            // Keep target finalization successful even if mail service fails
+        } catch (brokerError) {
+            console.error('Failed to publish target-finalized event:', brokerError.message);
+            // Keep target finalization successful even if broker is temporarily unavailable
         }
 
         res.json({

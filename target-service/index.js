@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+const { initEventPublisher } = require('./services/eventPublisher');
 
 const app = express();
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '15mb' }));
@@ -20,6 +21,9 @@ const DB_URL = process.env.DB_URL || 'mongodb://localhost:27017/targets';
 mongoose.connect(DB_URL)
     .then(() => {
         console.log('✓ Connected to MongoDB - Target Service');
+        initEventPublisher().catch((error) => {
+            console.error('[BROKER][target-service] init failed:', error.message);
+        });
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Target Service, Running on port ${PORT}                  
             `);

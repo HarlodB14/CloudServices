@@ -12,9 +12,11 @@
     "license": "ISC",
     "dependencies": {
         "@photo-prestige/auth-utils": "file:../auth-utils",
+        "@photo-prestige/message-broker": "file:../message-broker",
         "axios": "^1.6.0",
         "express": "^5.0.1",
         "mongoose": "^7.5.0",
+        "amqplib": "^0.10.4",
         "jsonwebtoken": "^9.0.0",
         "dotenv": "^16.3.1"
     },

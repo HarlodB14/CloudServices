@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const mailRoutes = require('./routes/mailRoutes');
 const { runGlobalReminderSweep } = require('./services/reminderService');
+const { startBrokerConsumer } = require('./services/brokerConsumer');
 
 const app = express();
 app.use(express.json());
@@ -41,11 +42,16 @@ async function startReminderLoop() {
 }
 
 mongoose.connect(DB_URL)
-    .then(() => {
+    .then(async() => {
         console.log('✓ Connected to MongoDB - Mail Service');
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Mail Service running on port ${PORT}`);
         });
+        try {
+            await startBrokerConsumer();
+        } catch (error) {
+            console.error('[BROKER][mail-service] consumer failed to start:', error.message);
+        }
         startReminderLoop();
     })
     .catch((err) => {

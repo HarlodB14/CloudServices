@@ -36,7 +36,21 @@ async function hasRecentReminder(targetId, participantId, minimumGapMs) {
     return elapsed < minimumGapMs;
 }
 
+async function wasFinalResultsDispatched(targetId) {
+    if (!targetId || !mongoose.Types.ObjectId.isValid(targetId)) {
+        return false;
+    }
+
+    const existing = await MailDispatchLog.findOne({
+        type: 'owner-summary',
+        targetId: new mongoose.Types.ObjectId(targetId)
+    }).lean();
+
+    return Boolean(existing);
+}
+
 module.exports = {
     logDispatch,
-    hasRecentReminder
+    hasRecentReminder,
+    wasFinalResultsDispatched
 };

@@ -9,10 +9,12 @@
     },
     "dependencies": {
         "@photo-prestige/auth-utils": "file:../auth-utils",
+        "@photo-prestige/message-broker": "file:../message-broker",
         "axios": "^1.6.0",
         "dotenv": "^17.2.3",
         "express": "^5.2.1",
         "mongoose": "^7.5.0",
+        "amqplib": "^0.10.4",
         "nodemailer": "^6.10.1"
     },
     "devDependencies": {

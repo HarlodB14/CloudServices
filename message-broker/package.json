@@ -1,0 +1,10 @@
+{
+    "name": "@photo-prestige/message-broker",
+    "version": "1.0.0",
+    "main": "index.js",
+    "license": "ISC",
+    "type": "commonjs",
+    "dependencies": {
+        "amqplib": "^0.10.4"
+    }
+}

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const enrollmentRoutes = require('./routes/enrollmentRoutes');
+const { startBrokerConsumer } = require('./services/brokerConsumer');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -23,7 +24,14 @@ mongoose.connect(MONGO_URI, {
         useNewUrlParser: true,
         useUnifiedTopology: true
     })
-    .then(() => console.log('✓ Connected to MongoDB (register DB)'))
+    .then(async() => {
+        console.log('✓ Connected to MongoDB (register DB)');
+        try {
+            await startBrokerConsumer();
+        } catch (error) {
+            console.error('[BROKER][register-service] consumer failed to start:', error.message);
+        }
+    })
     .catch(err => {
         console.error('✗ MongoDB connection failed:', err.message);
         process.exit(1);
