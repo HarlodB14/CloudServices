@@ -4,7 +4,7 @@ const MAIL_SERVICE_URL = process.env.MAIL_SERVICE_URL;
 const REQUEST_TIMEOUT_MS = Number(process.env.MAIL_REQUEST_TIMEOUT_MS || 5000);
 
 function buildSystemHeaders() {
-    return {
+    const headers = {
         'Content-Type': 'application/json',
         'X-User-Id': 'auth-service-system',
         'X-User-Email': 'auth-service@internal.local',
@@ -12,6 +12,11 @@ function buildSystemHeaders() {
         'X-User-Roles': 'admin',
         'X-User-Permissions': 'manage:users'
     };
+
+    const internalSecret = String(process.env.INTERNAL_SERVICE_SECRET || '').trim();
+    if (internalSecret) headers['X-Internal-Auth'] = internalSecret;
+
+    return headers;
 }
 
 async function sendRegistrationConfirmation({ name, email, roles, generatedCredentials = null }) {

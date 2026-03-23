@@ -1,5 +1,9 @@
 const jwt = require('jsonwebtoken');
 
+function getInternalServiceSecret() {
+    return String(process.env.INTERNAL_SERVICE_SECRET || '').trim();
+}
+
 function normalizeUser(req, source = {}) {
     const existing = req.user || {};
     const roles = source.userRoles || source.roles || req.userRoles || existing.userRoles || existing.roles || [];
@@ -73,6 +77,11 @@ function buildIdentityHeaders(identity = {}) {
         headers['X-User-Name'] = String(name);
     }
 
+    const internalSecret = getInternalServiceSecret();
+    if (internalSecret) {
+        headers['X-Internal-Auth'] = internalSecret;
+    }
+
     headers['X-User-Roles'] = toStringArray(roles).join(',');
     headers['X-User-Permissions'] = toStringArray(permissions).join(',');
 
@@ -108,38 +117,27 @@ function verifyTokenFromHeader() {
 
 /**
  * Verify user identity from X-headers (set by API Gateway)
- * Used in microservices when gateway has already validated the token
- * Falls back to JWT decoding if headers are missing
+ * Used in microservices when gateway or another trusted service has already
+ * validated identity and forwarded internal headers.
  */
 function verifyTokenFromXHeaders() {
     return (req, res, next) => {
-        let userId = req.headers['x-user-id'];
-        let userEmail = req.headers['x-user-email'];
-        let userName = req.headers['x-user-name'];
-        let userRoles = (req.headers['x-user-roles'] || '').split(',').filter(Boolean) || [];
-        let userPermissions = (req.headers['x-user-permissions'] || '').split(',').filter(Boolean) || [];
-
-        // Fallback: decode JWT if headers missing
-        if (!userId) {
-            const authHeader = req.headers['authorization'];
-            const token = authHeader && authHeader.split(' ')[1];
-
-            if (token) {
-                try {
-                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                    userId = decoded.userId;
-                    userEmail = decoded.email;
-                    userName = decoded.name;
-                    userRoles = decoded.roles || [];
-                    userPermissions = decoded.permissions || [];
-                } catch (error) {
-                    // Ignore JWT errors here, check userId below
-                }
+        const configuredSecret = getInternalServiceSecret();
+        if (configuredSecret) {
+            const providedSecret = String(req.headers['x-internal-auth'] || '').trim();
+            if (!providedSecret || providedSecret !== configuredSecret) {
+                return res.status(401).json({ error: 'Trusted internal signature required' });
             }
         }
 
+        const userId = req.headers['x-user-id'];
+        const userEmail = req.headers['x-user-email'];
+        const userName = req.headers['x-user-name'];
+        const userRoles = (req.headers['x-user-roles'] || '').split(',').filter(Boolean) || [];
+        const userPermissions = (req.headers['x-user-permissions'] || '').split(',').filter(Boolean) || [];
+
         if (!userId) {
-            return res.status(401).json({ error: 'User ID not provided' });
+            return res.status(401).json({ error: 'Trusted identity headers required' });
         }
 
         normalizeUser(req, { userId, email: userEmail, name: userName, roles: userRoles, permissions: userPermissions });
@@ -150,11 +148,10 @@ function verifyTokenFromXHeaders() {
 
 /**
  * Extract user identity trying multiple sources
- * Priority: X-headers → Authorization JWT → error
- * Most defensive approach for internal microservices
+ * Internal microservices only trust forwarded X-headers.
  */
 function verifyIdentity() {
-    return verifyTokenFromXHeaders(); // Same implementation - headers first, JWT fallback
+    return verifyTokenFromXHeaders();
 }
 
 /**
