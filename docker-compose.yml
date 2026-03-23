@@ -23,6 +23,12 @@ services:
       - SCORE_SERVICE_URL=http://score-service:3004
       - JWT_SECRET=mysecretkey
       - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
+      # Circuit breaker configuration
+      - CB_TIMEOUT=5000
+      - CB_ERROR_THRESHOLD=50
+      - CB_RESET_TIMEOUT=10000
+      - CB_VOLUME_THRESHOLD=5
+      - CB_RETRIES=2
     ports:
       - "3000:3000"
     depends_on:

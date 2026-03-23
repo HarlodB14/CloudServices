@@ -107,7 +107,12 @@ async function fetchImageBuffer(imageUrl, req) {
     const response = await axios.get(resolvedUrl, {
         responseType: 'arraybuffer',
         timeout: IMAGE_FETCH_TIMEOUT_MS,
-        maxContentLength: 20 * 1024 * 1024
+        maxContentLength: 20 * 1024 * 1024,
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; PhotoPrestigeBot/1.0; +https://example.local)',
+            Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9'
+        }
     });
 
     const mimeType = response.headers['content-type'] || 'application/octet-stream';
