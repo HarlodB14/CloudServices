@@ -34,70 +34,86 @@ async function sendFinalResults(req, res) {
             return res.status(400).json({ error: 'targetTitle, deadline and ownerEmail are required' });
         }
 
-        // Owner summary
-        await sendEmail({
-            to: ownerEmail,
-            subject: `Final results for '${targetTitle}'`,
-            text: buildOwnerSummaryBody({ targetTitle, deadline, winner, leaderboard })
-        });
-
-        await logDispatch({
-            type: 'owner-summary',
+        const result = await processFinalResultsPayload({
             targetId,
-            recipientEmail: ownerEmail,
-            meta: {
-                winner: winner || null,
-                participants: leaderboard.length
-            }
+            targetTitle,
+            deadline,
+            ownerEmail,
+            winner,
+            leaderboard
         });
-
-        // Participant individual mails
-        let participantEmailsSent = 0;
-        for (const entry of leaderboard) {
-            if (!entry.participantEmail || !entry.participantId) {
-                continue;
-            }
-
-            const text = [
-                `Hi ${entry.participantName || 'participant'},`,
-                '',
-                `Competition '${targetTitle}' has ended.`,
-                `Your final score: ${entry.finalScore}`,
-                `Visual similarity: ${entry.visualSimilarity}`,
-                `Timing score: ${entry.timingScore}`,
-                entry.rank ? `Rank: #${entry.rank}` : '',
-                '',
-                'Thanks for participating in Photo Prestige!'
-            ].filter(Boolean).join('\n');
-
-            await sendEmail({
-                to: entry.participantEmail,
-                subject: `Your score for '${targetTitle}'`,
-                text
-            });
-
-            await logDispatch({
-                type: 'participant-score',
-                targetId,
-                participantId: String(entry.participantId),
-                recipientEmail: entry.participantEmail,
-                meta: {
-                    finalScore: entry.finalScore,
-                    rank: entry.rank || null
-                }
-            });
-
-            participantEmailsSent += 1;
-        }
 
         return res.status(200).json({
             message: 'Final result emails sent',
-            ownerEmail,
-            participantEmailsSent
+            ownerEmail: result.ownerEmail,
+            participantEmailsSent: result.participantEmailsSent
         });
     } catch (error) {
         return res.status(500).json({ error: 'Failed to send final results: ' + error.message });
     }
+}
+
+async function processFinalResultsPayload({ targetId, targetTitle, deadline, ownerEmail, winner, leaderboard = [] }) {
+    // Owner summary
+    await sendEmail({
+        to: ownerEmail,
+        subject: `Final results for '${targetTitle}'`,
+        text: buildOwnerSummaryBody({ targetTitle, deadline, winner, leaderboard })
+    });
+
+    await logDispatch({
+        type: 'owner-summary',
+        targetId,
+        recipientEmail: ownerEmail,
+        meta: {
+            winner: winner || null,
+            participants: leaderboard.length
+        }
+    });
+
+    // Participant individual mails
+    let participantEmailsSent = 0;
+    for (const entry of leaderboard) {
+        if (!entry.participantEmail || !entry.participantId) {
+            continue;
+        }
+
+        const text = [
+            `Hi ${entry.participantName || 'participant'},`,
+            '',
+            `Competition '${targetTitle}' has ended.`,
+            `Your final score: ${entry.finalScore}`,
+            `Visual similarity: ${entry.visualSimilarity}`,
+            `Timing score: ${entry.timingScore}`,
+            entry.rank ? `Rank: #${entry.rank}` : '',
+            '',
+            'Thanks for participating in Photo Prestige!'
+        ].filter(Boolean).join('\n');
+
+        await sendEmail({
+            to: entry.participantEmail,
+            subject: `Your score for '${targetTitle}'`,
+            text
+        });
+
+        await logDispatch({
+            type: 'participant-score',
+            targetId,
+            participantId: String(entry.participantId),
+            recipientEmail: entry.participantEmail,
+            meta: {
+                finalScore: entry.finalScore,
+                rank: entry.rank || null
+            }
+        });
+
+        participantEmailsSent += 1;
+    }
+
+    return {
+        ownerEmail,
+        participantEmailsSent
+    };
 }
 
 async function sendEnrollmentConfirmation(req, res) {
@@ -213,6 +229,7 @@ async function triggerGlobalReminders(req, res) {
 
 module.exports = {
     sendFinalResults,
+    processFinalResultsPayload,
     sendEnrollmentConfirmation,
     sendRegistrationConfirmation,
     triggerTargetReminders,

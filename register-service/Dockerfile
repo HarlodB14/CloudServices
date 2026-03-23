@@ -3,9 +3,13 @@ FROM node:18-alpine
 WORKDIR /workspace
 
 COPY auth-utils ./auth-utils
+COPY message-broker ./message-broker
 COPY register-service ./register-service
 
 WORKDIR /workspace/auth-utils
+RUN npm install
+
+WORKDIR /workspace/message-broker
 RUN npm install
 
 WORKDIR /workspace/register-service

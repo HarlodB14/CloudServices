@@ -11,6 +11,18 @@ services:
     networks:
       - photo-prestiges
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - photo-prestiges
+
   api-gateway:
     build:
       context: .
@@ -79,11 +91,15 @@ services:
       - INTERNAL_MEDIA_FETCH_BASE_URL=http://api-gateway:3000
       - UPLOAD_DIR=/workspace/target-service/storage/uploads
       - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
+      - MESSAGE_BROKER_URL=amqp://guest:guest@rabbitmq:5672
+      - MESSAGE_BROKER_EXCHANGE=photo-prestige.events
+      - MESSAGE_BROKER_EXCHANGE_TYPE=topic
     depends_on:
       - mongo
       - score-service
       - register-service
       - mail-service
+      - rabbitmq
     volumes:
       - ./target-service/storage:/workspace/target-service/storage
     networks:
@@ -120,9 +136,14 @@ services:
       - MAIL_SERVICE_API_KEY=internal-mail-key
       - JWT_SECRET=mysecretkey
       - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
+      - MESSAGE_BROKER_URL=amqp://guest:guest@rabbitmq:5672
+      - MESSAGE_BROKER_EXCHANGE=photo-prestige.events
+      - MESSAGE_BROKER_EXCHANGE_TYPE=topic
+      - BROKER_QUEUE_REGISTER=register.submission-recorded
     depends_on:
       - mongo
       - mail-service
+      - rabbitmq
     networks:
       - photo-prestiges
 
@@ -146,8 +167,13 @@ services:
       - REMINDER_JOB_FREQUENCY_MS=300000
       - MIN_REMINDER_GAP_MINUTES=60
       - INTERNAL_SERVICE_SECRET=photo-prestige-internal-secret
+      - MESSAGE_BROKER_URL=amqp://guest:guest@rabbitmq:5672
+      - MESSAGE_BROKER_EXCHANGE=photo-prestige.events
+      - MESSAGE_BROKER_EXCHANGE_TYPE=topic
+      - BROKER_QUEUE_MAIL=mail.final-results
     depends_on:
       - mongo
+      - rabbitmq
     networks:
       - photo-prestiges
 
